@@ -1,59 +1,96 @@
-const { getGeminiModel, geminiConfig } = require('../config/gemini');
+const { generateContent, healthCheck, getRateLimitStatus } = require('../config/gemini');
+const { geminiAnalytics, trackRequest } = require('../utils/geminiAnalytics');
+const { PromptTemplates, TemplateUtils } = require('../utils/promptTemplates');
 
 class GeminiService {
   constructor() {
-    this.model = getGeminiModel();
+    // Enhanced prompt templates with better structure
+    this.promptTemplates = {
+      negotiation: {
+        base: PromptTemplates.negotiation.counter_offer,
+        initial: PromptTemplates.negotiation.initial,
+        final: PromptTemplates.negotiation.final_round,
+        urgent: PromptTemplates.negotiation.urgent_sale
+      },
+
+      productDescription: `Enhance this product description to make it more appealing and informative:
+
+CURRENT DESCRIPTION:
+\{description}
+
+PRODUCT DETAILS:
+- Title: \{title}
+- Category: \{category}
+- Condition: \{condition}
+- Price: $\{price}
+
+Please provide:
+1. Enhanced description (2-3 paragraphs)
+2. Key selling points (3-5 bullet points)
+3. Suggested improvements for listing
+
+Keep it natural, honest, and appealing to potential buyers.`,
+
+      insights: `Analyze this negotiation and provide strategic insights:
+
+NEGOTIATION DATA:
+- Product: \{productTitle}
+- Base Price: $\{basePrice}
+- Current Offer: $\{currentOffer}
+- Rounds: \{rounds}/\{maxRounds}
+- Status: \{status}
+
+CONVERSATION SUMMARY:
+\{conversationSummary}
+
+Provide:
+1. Negotiation assessment (going well, challenging, etc.)
+2. Buyer behavior analysis
+3. Recommended next steps
+4. Price recommendations
+5. Success probability estimate
+
+Be analytical and strategic in your response.`
+    };
   }
 
-  // Generate negotiation response
+  // Generate negotiation response with enhanced tracking
   async generateNegotiationResponse(context) {
+    const startTime = Date.now();
+    
     try {
-      const {
-        productTitle,
-        basePrice,
-        minPrice,
-        currentOffer,
-        rounds,
-        maxRounds,
-        urgency = 'medium',
-        conversationHistory = [],
-        userMessage
-      } = context;
-
-      // Calculate negotiation flexibility based on various factors
-      const priceRange = basePrice - minPrice;
-      const currentDiscount = basePrice - currentOffer;
-      const discountPercentage = (currentDiscount / basePrice) * 100;
-      const progressPercentage = (rounds / maxRounds) * 100;
-
-      // Build AI prompt
-      const prompt = this.buildNegotiationPrompt({
-        productTitle,
-        basePrice,
-        minPrice,
-        currentOffer,
-        rounds,
-        maxRounds,
-        urgency,
-        conversationHistory,
-        userMessage,
-        discountPercentage,
-        progressPercentage
+      // Use enhanced prompt templates
+      const scenario = TemplateUtils.detectScenario(context);
+      const enhancedContext = TemplateUtils.generateContextData(context);
+      const template = TemplateUtils.getTemplate(scenario, context.personality, context.category);
+      
+      const prompt = TemplateUtils.replacePlaceholders(template, enhancedContext);
+      
+      const response = await generateContent(prompt, {
+        userId: context.userId || 'anonymous',
+        timeout: 15000,
+        retries: 2
       });
 
-      const result = await this.model.generateContent(prompt);
-      const response = result.response.text();
-
-      // Parse the response to extract structured data
-      return this.parseNegotiationResponse(response, context);
-
+      const result = this.parseNegotiationResponse(response, context);
+      
+      // Track successful request
+      const responseTime = Date.now() - startTime;
+      geminiAnalytics.recordRequest('negotiation', responseTime, true);
+      
+      return result;
     } catch (error) {
-      console.error('Gemini AI Error:', error);
+      console.error('Error generating negotiation response:', error);
+      
+      // Track failed request
+      const responseTime = Date.now() - startTime;
+      geminiAnalytics.recordRequest('negotiation', responseTime, false, error);
+      
       return this.getFallbackResponse(context);
     }
   }
 
-  // Build the negotiation prompt
+  // Build the negotiation prompt with personality and context
   buildNegotiationPrompt(context) {
     const {
       productTitle,
@@ -62,51 +99,37 @@ class GeminiService {
       currentOffer,
       rounds,
       maxRounds,
-      urgency,
-      conversationHistory,
+      urgency = 'medium',
+      conversationHistory = [],
       userMessage,
-      discountPercentage,
-      progressPercentage
+      personality = 'professional'
     } = context;
 
-    return `
-You are an AI assistant representing a seller in a marketplace negotiation for "${productTitle}".
+    // Calculate metrics
+    const discountPercentage = ((basePrice - currentOffer) / basePrice * 100).toFixed(1);
+    const progressPercentage = ((rounds / maxRounds) * 100).toFixed(1);
 
-PRODUCT DETAILS:
-- Listed Price: $${basePrice}
-- Minimum Acceptable: $${minPrice}
-- Current Buyer Offer: $${currentOffer}
-- Discount Requested: ${discountPercentage.toFixed(1)}%
+    // Format conversation history
+    const formattedHistory = conversationHistory.slice(-5).map(msg => 
+      `${msg.sender}: ${msg.content}${msg.offer ? ` (Offer: $${msg.offer.amount})` : ''}`
+    ).join('\n') || 'No previous messages';
 
-NEGOTIATION STATUS:
-- Round: ${rounds}/${maxRounds}
-- Progress: ${progressPercentage.toFixed(1)}%
-- Urgency Level: ${urgency}
+    // Build prompt with template
+    let prompt = this.promptTemplates.negotiation.base
+      .replace(/\{productTitle\}/g, productTitle)
+      .replace(/\{basePrice\}/g, basePrice)
+      .replace(/\{minPrice\}/g, minPrice)
+      .replace(/\{currentOffer\}/g, currentOffer)
+      .replace(/\{discountPercentage\}/g, discountPercentage)
+      .replace(/\{rounds\}/g, rounds)
+      .replace(/\{maxRounds\}/g, maxRounds)
+      .replace(/\{progressPercentage\}/g, progressPercentage)
+      .replace(/\{urgency\}/g, urgency)
+      .replace(/\{personality\}/g, personality)
+      .replace(/\{conversationHistory\}/g, formattedHistory)
+      .replace(/\{userMessage\}/g, userMessage || 'Starting negotiation');
 
-CONVERSATION HISTORY:
-${conversationHistory.slice(-3).join('\n')}
-
-LATEST BUYER MESSAGE: "${userMessage}"
-
-GUIDELINES:
-1. Be professional, friendly, but protect seller's interests
-2. Consider urgency: high = more flexible, low = firmer stance
-3. Pricing strategy:
-   - 0-10% discount: Negotiate firmly, small concessions
-   - 10-20% discount: Show flexibility, reasonable counters
-   - 20-30% discount: Push back politely, justify value
-   - 30%+ discount: Decline or make minimal counter
-
-RESPONSE FORMAT:
-Your response should indicate your action and be conversational. Include:
-1. A natural conversational message (max 150 words)
-2. Clear action: ACCEPT, COUNTER, REJECT, or CONTINUE
-3. If countering, suggest a specific price
-4. Brief reasoning for your decision
-
-Be human-like in your communication - use appropriate enthusiasm, concern, or firmness based on the situation.
-
-Respond now:`;
+    return prompt;
   }
 
   // Parse AI response and extract structured data
@@ -119,102 +142,158 @@ Respond now:`;
       action: 'continue',
       offer: null,
       confidence: 0.7,
+      reasoning: '',
       metadata: {
         model: 'gemini-pro',
         promptId: Date.now().toString(),
         processingTime: Date.now(),
-        tokensUsed: response.length
+        tokensUsed: response.length,
+        originalResponse: response
       }
     };
 
-    // Extract action from response
-    const upperResponse = response.toUpperCase();
-    
-    if (upperResponse.includes('ACCEPT')) {
-      result.action = 'accept';
-      result.confidence = 0.9;
-    } else if (upperResponse.includes('REJECT') || upperResponse.includes('DECLINE')) {
-      result.action = 'reject';
-      result.confidence = 0.8;
-    } else if (upperResponse.includes('COUNTER')) {
-      result.action = 'counter';
+    try {
+      // Clean the response
+      const cleanResponse = response.trim();
+      const upperResponse = cleanResponse.toUpperCase();
       
-      // Extract counter-offer amount
-      const priceMatch = response.match(/\$(\d+(?:\.\d{2})?)/);
-      if (priceMatch) {
-        const amount = parseFloat(priceMatch[1]);
-        if (amount >= minPrice && amount <= basePrice) {
-          result.offer = {
-            amount,
-            reasoning: 'Counter-offer based on product value and market analysis'
+      // Extract action from response
+      if (upperResponse.includes('ACCEPT')) {
+        result.action = 'accept';
+        result.offer = { amount: currentOffer, final: true };
+        result.confidence = 0.9;
+      } else if (upperResponse.includes('REJECT')) {
+        result.action = 'reject';
+        result.confidence = 0.8;
+      } else if (upperResponse.includes('COUNTER')) {
+        result.action = 'counter';
+        
+        // Extract counter-offer amount
+        const priceMatches = cleanResponse.match(/\$[\d,]+(?:\.\d{2})?/g);
+        if (priceMatches && priceMatches.length > 0) {
+          // Get the last price mentioned (likely the counter-offer)
+          const lastPrice = priceMatches[priceMatches.length - 1];
+          const amount = parseFloat(lastPrice.replace(/[$,]/g, ''));
+          
+          if (amount >= minPrice && amount <= basePrice) {
+            result.offer = { amount, final: false };
+            result.confidence = 0.8;
+          } else {
+            // Use strategic calculation if extracted price is invalid
+            result.offer = { 
+              amount: this.calculateStrategicCounterOffer(currentOffer, basePrice, minPrice),
+              final: false 
+            };
+            result.confidence = 0.6;
+          }
+        } else {
+          // No valid price found, calculate strategic counter
+          result.offer = { 
+            amount: this.calculateStrategicCounterOffer(currentOffer, basePrice, minPrice),
+            final: false 
           };
-          result.confidence = 0.8;
+          result.confidence = 0.5;
         }
       }
 
-      // If no valid counter-offer found, generate one strategically
-      if (!result.offer) {
-        const strategicOffer = this.calculateStrategicCounterOffer(currentOffer, basePrice, minPrice);
-        result.offer = {
-          amount: strategicOffer,
-          reasoning: 'Strategic counter-offer to move negotiation forward'
-        };
+      // Extract reasoning if available
+      const reasoningPatterns = [
+        /because\s+(.+?)(?:\.|$)/i,
+        /since\s+(.+?)(?:\.|$)/i,
+        /as\s+(.+?)(?:\.|$)/i
+      ];
+
+      for (const pattern of reasoningPatterns) {
+        const match = cleanResponse.match(pattern);
+        if (match && match[1]) {
+          result.reasoning = match[1].trim();
+          break;
+        }
       }
+
+      // Clean up the content for display
+      result.content = this.cleanResponseContent(cleanResponse);
+
+    } catch (error) {
+      console.error('Error parsing negotiation response:', error);
+      result.confidence = 0.3;
     }
 
     return result;
   }
 
+  // Clean response content for display
+  cleanResponseContent(content) {
+    // Remove action indicators and formatting
+    return content
+      .replace(/\b(ACCEPT|REJECT|COUNTER|CONTINUE)\b/gi, '')
+      .replace(/\$[\d,]+(?:\.\d{2})?/g, match => match) // Keep prices as-is
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
   // Calculate strategic counter-offer
   calculateStrategicCounterOffer(currentOffer, basePrice, minPrice) {
     const offerGap = basePrice - currentOffer;
     const minimumGap = basePrice - minPrice;
     
-    // Offer somewhere between current offer and base price
-    // Closer to current offer if it's reasonable, closer to base if it's too low
     let counterOffer;
     
     if (currentOffer >= minPrice * 1.2) {
-      // Reasonable offer - meet them partway
-      counterOffer = currentOffer + (offerGap * 0.6);
+      // Offer is reasonable, counter closer to their offer
+      counterOffer = currentOffer + (offerGap * 0.4);
     } else if (currentOffer >= minPrice) {
-      // Low but acceptable - small concession
-      counterOffer = currentOffer + (offerGap * 0.8);
+      // Offer is at or near minimum, counter closer to base
+      counterOffer = currentOffer + (offerGap * 0.6);
     } else {
-      // Too low - minimal concession
-      counterOffer = basePrice * 0.9;
+      // Offer is below minimum, counter significantly higher
+      counterOffer = minPrice + (minimumGap * 0.3);
     }
 
     // Ensure counter-offer is within acceptable range
-    return Math.max(minPrice, Math.min(basePrice, Math.round(counterOffer)));
+    return Math.max(minPrice, Math.min(basePrice * 0.95, Math.round(counterOffer)));
   }
 
   // Fallback response when AI fails
   getFallbackResponse(context) {
-    const { currentOffer, basePrice, minPrice } = context;
+    const { currentOffer, basePrice, minPrice, personality = 'professional' } = context;
     
-    const fallbackResponses = [
-      "Thank you for your offer. Let me consider this and get back to you shortly.",
-      "I appreciate your interest. Let me review your proposal.",
-      "That's an interesting offer. I need a moment to think about it.",
-      "Thanks for the offer. Let me see what I can do."
-    ];
+    const personalityResponses = {
+      friendly: [
+        "Thanks for your offer! Let me think about this and get back to you soon. 😊",
+        "I appreciate your interest! Give me a moment to consider your proposal.",
+        "That's an interesting offer! Let me review it carefully."
+      ],
+      professional: [
+        "Thank you for your offer. I will review it and respond shortly.",
+        "I have received your proposal and will provide a response momentarily.",
+        "Your offer is under consideration. Please allow me a moment to respond."
+      ],
+      firm: [
+        "I need to consider your offer carefully given my pricing.",
+        "Let me review your proposal against my minimum requirements.",
+        "I'll evaluate your offer and respond accordingly."
+      ],
+      flexible: [
+        "Thanks for the offer! I'm sure we can work something out.",
+        "I appreciate your proposal. Let me see what we can do.",
+        "Interesting offer! I'm open to finding a middle ground."
+      ]
+    };
 
-    const randomResponse = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+    const responses = personalityResponses[personality] || personalityResponses.professional;
+    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
 
     // Simple logic for fallback action
     let action = 'continue';
     let offer = null;
 
     if (currentOffer >= minPrice * 1.1) {
-      // Close to acceptable - might counter
       action = 'counter';
-      offer = {
-        amount: Math.round(currentOffer + ((basePrice - currentOffer) * 0.5)),
-        reasoning: 'Counter-offer based on product value'
+      offer = { 
+        amount: this.calculateStrategicCounterOffer(currentOffer, basePrice, minPrice),
+        final: false 
       };
     } else if (currentOffer < minPrice * 0.8) {
-      // Too low - likely reject
       action = 'reject';
     }
 
@@ -222,131 +301,62 @@ Respond now:`;
       content: randomResponse,
       action,
       offer,
-      confidence: 0.3,
+      confidence: 0.4,
+      reasoning: 'Fallback response due to AI service unavailability',
       metadata: {
         model: 'fallback',
-        promptId: 'fallback-' + Date.now(),
-        processingTime: 0,
-        tokensUsed: 0,
-        error: 'AI service unavailable'
+        promptId: Date.now().toString(),
+        processingTime: Date.now(),
+        isFallback: true
       }
     };
   }
 
-  // Generate product description enhancement
-  async enhanceProductDescription(productData) {
+  // Health check for the service
+  async checkHealth() {
     try {
-      const prompt = `
-Enhance this product listing to make it more appealing to buyers:
-
-Title: ${productData.title}
-Category: ${productData.category}
-Condition: ${productData.condition}
-Current Description: ${productData.description}
-
-Please provide:
-1. An improved, engaging description (max 300 words)
-2. Suggested tags/keywords
-3. Highlight key selling points
-
-Keep it honest and accurate while making it more attractive.
-`;
-
-      const result = await this.model.generateContent(prompt);
-      const response = result.response.text();
-
+      const health = await healthCheck();
+      const analytics = geminiAnalytics.getMetrics();
+      
       return {
-        enhancedDescription: response,
-        suggestions: this.extractDescriptionSuggestions(response)
+        ...health,
+        service: 'GeminiService',
+        timestamp: new Date().toISOString(),
+        analytics: {
+          totalRequests: analytics.totalRequests,
+          successRate: analytics.successRate,
+          averageResponseTime: analytics.averageResponseTime,
+          cacheHitRate: (analytics.cacheHitRate * 100).toFixed(1) + '%'
+        },
+        insights: geminiAnalytics.getPerformanceInsights()
       };
-
     } catch (error) {
-      console.error('Description enhancement error:', error);
       return {
-        enhancedDescription: productData.description,
-        suggestions: []
+        status: 'unhealthy',
+        service: 'GeminiService',
+        error: error.message,
+        timestamp: new Date().toISOString()
       };
     }
   }
 
-  // Extract suggestions from enhanced description
-  extractDescriptionSuggestions(response) {
-    const suggestions = [];
-    
-    // Simple extraction logic - could be improved
-    if (response.includes('tags:') || response.includes('keywords:')) {
-      const tagMatch = response.match(/(?:tags|keywords):\s*([^\n]+)/i);
-      if (tagMatch) {
-        const tags = tagMatch[1].split(',').map(tag => tag.trim().toLowerCase());
-        suggestions.push(...tags);
-      }
-    }
-
-    return suggestions.filter(tag => tag.length > 0 && tag.length <= 20).slice(0, 10);
+  // Get rate limit status for user
+  getRateLimitInfo(userId) {
+    return getRateLimitStatus(userId);
   }
 
-  // Generate negotiation insights
-  async generateNegotiationInsights(negotiationData) {
-    try {
-      const {
-        product,
-        pricing,
-        rounds,
-        messages,
-        analytics
-      } = negotiationData;
-
-      const prompt = `
-Analyze this negotiation and provide insights:
-
-Product: ${product.title} - $${product.pricing.basePrice}
-Initial Offer: $${pricing.initialOffer}
-Current Offer: $${pricing.currentOffer}
-Rounds: ${rounds}
-Message Count: ${messages.length}
-
-Recent messages:
-${messages.slice(-3).map(m => `${m.sender}: ${m.content}`).join('\n')}
-
-Provide brief insights on:
-1. Negotiation momentum
-2. Buyer's strategy
-3. Likelihood of successful deal
-4. Recommended next steps
-
-Keep response under 200 words.
-`;
-
-      const result = await this.model.generateContent(prompt);
-      const response = result.response.text();
-
-      return {
-        insights: response,
-        recommendations: this.extractRecommendations(response)
-      };
-
-    } catch (error) {
-      console.error('Insights generation error:', error);
-      return {
-        insights: 'Analysis unavailable at this time.',
-        recommendations: []
-      };
-    }
+  // Get analytics dashboard data
+  getAnalyticsDashboard() {
+    return {
+      metrics: geminiAnalytics.getMetrics(),
+      insights: geminiAnalytics.getPerformanceInsights(),
+      dailyReport: geminiAnalytics.generateDailyReport()
+    };
   }
 
-  // Extract recommendations from insights
-  extractRecommendations(response) {
-    const recommendations = [];
-    
-    // Look for action items or recommendations
-    const lines = response.split('\n');
-    lines.forEach(line => {
-      if (line.includes('recommend') || line.includes('suggest') || line.includes('should')) {
-        recommendations.push(line.trim());
-      }
-    });
-
-    return recommendations.slice(0, 3);
+  // Export analytics data
+  async exportAnalytics(filename) {
+    return await geminiAnalytics.exportMetrics(filename);
   }
 }
 

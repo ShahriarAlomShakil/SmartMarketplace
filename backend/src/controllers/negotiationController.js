@@ -32,7 +32,7 @@ const formatNegotiationResponse = (negotiation) => {
 // Helper function to generate AI response using Gemini
 const generateAIResponse = async (negotiation, userMessage, userOffer) => {
   try {
-    const model = getGeminiModel();
+    const geminiService = require('../services/geminiService');
     const product = negotiation.product;
     
     // Build context for AI
@@ -44,60 +44,67 @@ const generateAIResponse = async (negotiation, userMessage, userOffer) => {
       rounds: negotiation.rounds,
       maxRounds: negotiation.maxRounds,
       urgency: product.urgency?.level || 'medium',
-      conversationHistory: negotiation.messages.slice(-5).map(msg => 
-        `${msg.sender}: ${msg.content}${msg.offer ? ` (Offer: $${msg.offer.amount})` : ''}`
-      ).join('\n')
+      personality: product.seller?.personality || 'professional',
+      conversationHistory: negotiation.messages.slice(-5),
+      userMessage: userMessage,
+      userId: negotiation.buyer.toString()
     };
 
-    // Calculate negotiation flexibility
-    const priceRange = product.pricing.basePrice - product.pricing.minPrice;
-    const currentDiscount = product.pricing.basePrice - (userOffer || negotiation.pricing.currentOffer);
-    const discountPercentage = (currentDiscount / product.pricing.basePrice) * 100;
+    // Use enhanced Gemini service
+    const aiResponse = await geminiService.generateNegotiationResponse(context);
     
-    // Build AI prompt
-    const prompt = `
-You are an AI assistant representing a seller in a price negotiation for "${context.productTitle}".
+    return {
+      content: aiResponse.content,
+      action: aiResponse.action,
+      offer: aiResponse.offer,
+      confidence: aiResponse.confidence,
+      reasoning: aiResponse.reasoning || '',
+      metadata: aiResponse.metadata
+    };
 
-Product Details:
-- Listed Price: $${context.basePrice}
-- Minimum Acceptable Price: $${context.minPrice}
-- Current Buyer Offer: $${context.currentOffer}
-- Urgency Level: ${context.urgency}
-- Negotiation Round: ${context.rounds}/${context.maxRounds}
-
-Current Conversation:
-${context.conversationHistory}
-
-Latest buyer message: "${userMessage}"
-
-Guidelines:
-1. Be friendly but firm in negotiations
-2. Consider the urgency level - higher urgency means more flexibility
-3. You can accept offers within 5% of minimum price
-4. Counter-offer strategically, moving closer to minimum price gradually
-5. If offer is very low (>30% discount), politely decline and provide reasoning
-6. If offer is reasonable (10-25% discount), counter-offer
-7. If offer is good (5-15% discount), show interest and minor counter
-8. Keep responses concise and professional
-9. Build rapport while protecting the seller's interests
-10. Reference the product's value and condition when justifying price
-
-Current offer is ${discountPercentage.toFixed(1)}% below listed price.
-
-Respond with:
-1. A conversational message (max 150 words)
-2. An action: "accept", "counter", "reject", or "continue"
-3. If counter-offering, provide the counter-offer amount and reasoning
-4. Rate your confidence (0-1) in this negotiation strategy
-
-Format your response as a conversation, not a business letter.
-`;
-
-    const result = await model.generateContent(prompt);
-    const response = result.response.text();
+  } catch (error) {
+    console.error('Error generating AI response:', error);
     
-    // Parse AI response to extract action and counter-offer
+    // Enhanced fallback response
+    const { currentOffer, basePrice, minPrice } = {
+      currentOffer: userOffer || negotiation.pricing.currentOffer,
+      basePrice: negotiation.product.pricing.basePrice,
+      minPrice: negotiation.product.pricing.minPrice
+    };
+
+    const fallbackResponses = [
+      "Thank you for your offer. Let me think about this and get back to you.",
+      "I appreciate your interest. Let me review your proposal carefully.",
+      "That's an interesting offer. Give me a moment to consider it.",
+      "Thanks for reaching out. I need to evaluate this offer."
+    ];
+
     let action = 'continue';
+    let offer = null;
+
+    // Simple fallback logic
+    if (currentOffer >= minPrice * 1.1) {
+      action = 'counter';
+      const strategicPrice = Math.round(currentOffer + ((basePrice - currentOffer) * 0.5));
+      offer = { amount: strategicPrice, final: false };
+    } else if (currentOffer < minPrice * 0.8) {
+      action = 'reject';
+    }
+
+    return {
+      content: fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)],
+      action,
+      offer,
+      confidence: 0.3,
+      reasoning: 'Fallback response - AI service temporarily unavailable',
+      metadata: {
+        model: 'fallback',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      }
+    };
+  }
+};
     let counterOffer = null;
     let reasoning = '';
     
@@ -120,46 +127,14 @@ Format your response as a conversation, not a business letter.
       
       // If no valid counter-offer found, generate one
       if (!counterOffer) {
-        const offerGap = product.pricing.basePrice - (userOffer || negotiation.pricing.currentOffer);
-        const counterAmount = (userOffer || negotiation.pricing.currentOffer) + (offerGap * 0.6);
-        counterOffer = Math.max(product.pricing.minPrice, Math.min(product.pricing.basePrice, counterAmount));
-      }
+        metadata: {
+          model: 'fallback',
+          error: error.message,
+          timestamp: new Date().toISOString()
+        }
+      };
     }
-
-    return {
-      content: response.trim(),
-      action,
-      offer: counterOffer ? {
-        amount: counterOffer,
-        reasoning: reasoning || 'Counter-offer based on product value and market conditions'
-      } : undefined,
-      confidence: 0.8, // Default confidence
-      metadata: {
-        model: 'gemini-pro',
-        promptId: Date.now().toString(),
-        processingTime: Date.now(),
-        tokensUsed: response.length // Approximate
-      }
-    };
-
-  } catch (error) {
-    console.error('AI response generation error:', error);
-    
-    // Fallback response
-    return {
-      content: "Thank you for your offer. Let me consider this and get back to you shortly.",
-      action: 'continue',
-      confidence: 0.3,
-      metadata: {
-        model: 'fallback',
-        promptId: 'fallback-' + Date.now(),
-        processingTime: 0,
-        tokensUsed: 0,
-        error: error.message
-      }
-    };
-  }
-};
+  };
 
 // @desc    Start a new negotiation
 // @route   POST /api/negotiations/start

@@ -114,6 +114,7 @@ app.get('/api/docs.json', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/ai', require('./src/routes/ai')); // New AI service routes
 // app.use('/api/negotiations', negotiationRoutes);
 app.use('/api/system', systemRoutes);
 

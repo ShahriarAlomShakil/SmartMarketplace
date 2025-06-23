@@ -1,0 +1,142 @@
+{
+  "timestamp": "2025-06-23T16:09:41.871Z",
+  "summary": {
+    "total": 21,
+    "passed": 19,
+    "failed": 2,
+    "passRate": "90.5"
+  },
+  "details": [
+    {
+      "name": "API Connection",
+      "passed": false,
+      "details": "Status: unhealthy",
+      "timestamp": "2025-06-23T16:09:03.402Z"
+    },
+    {
+      "name": "Response Generation",
+      "passed": true,
+      "details": "Valid negotiation response generated",
+      "timestamp": "2025-06-23T16:09:07.470Z"
+    },
+    {
+      "name": "Response Content",
+      "passed": true,
+      "details": "Length: 75 chars",
+      "timestamp": "2025-06-23T16:09:07.470Z"
+    },
+    {
+      "name": "Response Action",
+      "passed": true,
+      "details": "Action: continue",
+      "timestamp": "2025-06-23T16:09:07.470Z"
+    },
+    {
+      "name": "friendly personality",
+      "passed": true,
+      "details": "Generated 71 chars",
+      "timestamp": "2025-06-23T16:09:12.230Z"
+    },
+    {
+      "name": "professional personality",
+      "passed": true,
+      "details": "Generated 70 chars",
+      "timestamp": "2025-06-23T16:09:16.940Z"
+    },
+    {
+      "name": "firm personality",
+      "passed": true,
+      "details": "Generated 49 chars",
+      "timestamp": "2025-06-23T16:09:21.803Z"
+    },
+    {
+      "name": "flexible personality",
+      "passed": true,
+      "details": "Generated 54 chars",
+      "timestamp": "2025-06-23T16:09:26.616Z"
+    },
+    {
+      "name": "Rate Limit Info",
+      "passed": true,
+      "details": "Remaining: 55",
+      "timestamp": "2025-06-23T16:09:26.616Z"
+    },
+    {
+      "name": "Rapid Requests",
+      "passed": false,
+      "details": "0/3 requests succeeded",
+      "timestamp": "2025-06-23T16:09:32.556Z"
+    },
+    {
+      "name": "Parse \"accept\" action",
+      "passed": true,
+      "details": "Got: accept",
+      "timestamp": "2025-06-23T16:09:32.558Z"
+    },
+    {
+      "name": "Parse \"counter\" action",
+      "passed": true,
+      "details": "Got: counter",
+      "timestamp": "2025-06-23T16:09:32.559Z"
+    },
+    {
+      "name": "Parse \"reject\" action",
+      "passed": true,
+      "details": "Got: reject",
+      "timestamp": "2025-06-23T16:09:32.559Z"
+    },
+    {
+      "name": "Parse \"continue\" action",
+      "passed": true,
+      "details": "Got: continue",
+      "timestamp": "2025-06-23T16:09:32.559Z"
+    },
+    {
+      "name": "Fallback Response",
+      "passed": "Your offer is under consideration. Please allow me a moment to respond.",
+      "details": "Fallback mechanism working",
+      "timestamp": "2025-06-23T16:09:32.560Z"
+    },
+    {
+      "name": "Fallback Action",
+      "passed": true,
+      "details": "Action: continue",
+      "timestamp": "2025-06-23T16:09:32.560Z"
+    },
+    {
+      "name": "Fallback Metadata",
+      "passed": true,
+      "details": "Metadata correctly set",
+      "timestamp": "2025-06-23T16:09:32.560Z"
+    },
+    {
+      "name": "Invalid Context Handling",
+      "passed": true,
+      "details": "Service handled invalid context gracefully",
+      "timestamp": "2025-06-23T16:09:36.750Z"
+    },
+    {
+      "name": "Health Check",
+      "passed": true,
+      "details": "Status: unhealthy",
+      "timestamp": "2025-06-23T16:09:37.837Z"
+    },
+    {
+      "name": "Response Time",
+      "passed": true,
+      "details": "4034ms (target: <10s)",
+      "timestamp": "2025-06-23T16:09:41.871Z"
+    },
+    {
+      "name": "Performance Response",
+      "passed": "Thank you for your offer. I will review it and respond shortly.",
+      "details": "Response generated successfully",
+      "timestamp": "2025-06-23T16:09:41.871Z"
+    }
+  ],
+  "recommendations": [
+    "Check GEMINI_API_KEY environment variable",
+    "Verify internet connectivity",
+    "Check API quota and billing"
+  ]
+}
