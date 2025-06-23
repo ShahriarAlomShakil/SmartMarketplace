@@ -82,6 +82,16 @@ router.get('/trending', productController.getTrendingProducts);
 // @access  Public
 router.get('/categories', productController.getCategories);
 
+// @route   GET /api/products/suggestions
+// @desc    Get search suggestions
+// @access  Public
+router.get('/suggestions', [
+  query('q')
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Search query is required and must be between 1 and 100 characters'),
+  validate
+], productController.getSearchSuggestions);
+
 // @route   GET /api/products/:id
 // @desc    Get product by ID
 // @access  Public

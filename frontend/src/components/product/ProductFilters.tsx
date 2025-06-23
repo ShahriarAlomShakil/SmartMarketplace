@@ -3,13 +3,16 @@ import { BlurCard } from '../ui/BlurCard';
 import { ModernInput } from '../ui/ModernInput';
 import { ModernButton } from '../ui/ModernButton';
 import { ModernBadge } from '../ui/ModernBadge';
+import { SearchSuggestions } from '../ui/SearchSuggestions';
+import { PriceRangeSlider } from '../ui/PriceRangeSlider';
 import { 
   MagnifyingGlassIcon,
   AdjustmentsHorizontalIcon,
   XMarkIcon,
   MapPinIcon,
   TagIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  FunnelIcon
 } from '@heroicons/react/24/outline';
 
 /**
@@ -76,8 +79,9 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
 }) => {
   const [showFilters, setShowFilters] = useState(false);
   const [searchValue, setSearchValue] = useState(filters.search);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Debounced search
+  // Debounced search - handled by SearchSuggestions component
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchValue !== filters.search) {
@@ -90,6 +94,15 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
 
   const updateFilter = (key: keyof FilterState, value: any) => {
     onFiltersChange({ ...filters, [key]: value });
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value);
+    updateFilter('search', value);
+  };
+
+  const handleSearch = (query: string) => {
+    updateFilter('search', query);
   };
 
   const toggleCondition = (condition: string) => {
@@ -136,18 +149,17 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
   const hasActiveFilters = getActiveFilterCount() > 0;
 
   return (
-    <div className={className}>
+    <div className={`relative z-50 ${className}`}>
       {/* Search bar and filter toggle */}
       <BlurCard variant="default" className="p-4 mb-6">
         <div className="flex flex-col sm:flex-row gap-4">
-          {/* Search input */}
-          <div className="flex-1">
-            <ModernInput
-              type="text"
-              placeholder="Search products..."
+          {/* Enhanced Search input with suggestions */}
+          <div className="flex-1 relative z-[100]">
+            <SearchSuggestions
               value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-              leftIcon={<MagnifyingGlassIcon className="w-5 h-5" />}
+              onChange={handleSearchChange}
+              onSearch={handleSearch}
+              placeholder="Search products, categories, brands..."
               className="w-full"
             />
           </div>
@@ -162,7 +174,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
                 updateFilter('sortBy', sortBy);
                 updateFilter('sortOrder', sortOrder as 'asc' | 'desc');
               }}
-              className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 backdrop-blur-md"
+              className="px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 backdrop-blur-md min-w-0"
             >
               {SORT_OPTIONS.map(option => (
                 <option key={option.value} value={`${option.value}-desc`} className="bg-gray-900">
@@ -170,6 +182,16 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
                 </option>
               ))}
             </select>
+
+            {/* Advanced filters toggle */}
+            <ModernButton
+              variant={showAdvanced ? 'primary' : 'secondary'}
+              size="md"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              leftIcon={<FunnelIcon className="w-5 h-5" />}
+            >
+              Advanced
+            </ModernButton>
 
             {/* Filter toggle */}
             <ModernButton

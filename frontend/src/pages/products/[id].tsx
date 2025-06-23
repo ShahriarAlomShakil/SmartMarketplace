@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { useRouter } from 'next/router';
 import Image from 'next/image';
+import { useRouter } from 'next/router';
 import { Layout } from '../../components/Layout';
 import { BackdropBlur } from '../../components/ui/BackdropBlur';
 import { ModernButton } from '../../components/ui/ModernButton';
+import { ImageGallery } from '../../components/product/ImageGallery';
+import { SellerProfile } from '../../components/product/SellerProfile';
+import { RelatedProducts } from '../../components/product/RelatedProducts';
 import { productAPI } from '../../utils/api';
 import { formatRating, hasValidRating } from '../../utils/rating';
 import { 
@@ -16,7 +19,10 @@ import {
   EyeIcon,
   HeartIcon,
   ShareIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  InformationCircleIcon,
+  CheckCircleIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 
 /**
@@ -54,6 +60,10 @@ interface Product {
     avatar?: string;
     profile?: {
       rating: number;
+      bio?: string;
+      joinDate?: string;
+      totalSales?: number;
+      responseTime?: string;
     };
   };
   location: {
@@ -72,8 +82,13 @@ interface Product {
   analytics: {
     views: number;
     likes: number;
+    negotiations?: number;
+  };
+  specifications?: {
+    [key: string]: string;
   };
   createdAt: string;
+  updatedAt: string;
 }
 
 const ProductDetailPage: React.FC = () => {
@@ -83,10 +98,15 @@ const ProductDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [loadingRelated, setLoadingRelated] = useState(false);
 
   useEffect(() => {
     if (id && typeof id === 'string') {
       fetchProduct(id);
+      trackView(id);
     }
   }, [id]);
 
@@ -94,7 +114,12 @@ const ProductDetailPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await productAPI.getById(productId);
-      setProduct(response.data.product);
+      const productData = response.data.product;
+      setProduct(productData);
+      setLikeCount(productData.analytics.likes || 0);
+      
+      // Fetch related products
+      fetchRelatedProducts(productId, productData.category);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load product');
     } finally {
@@ -102,10 +127,85 @@ const ProductDetailPage: React.FC = () => {
     }
   };
 
+  const fetchRelatedProducts = async (productId: string, category: string) => {
+    try {
+      setLoadingRelated(true);
+      const response = await productAPI.getSimilar(productId);
+      setRelatedProducts(response.data.products || []);
+    } catch (err) {
+      console.error('Failed to fetch related products:', err);
+    } finally {
+      setLoadingRelated(false);
+    }
+  };
+
+  const trackView = async (productId: string) => {
+    try {
+      await productAPI.trackView(productId);
+    } catch (err) {
+      console.error('Failed to track view:', err);
+    }
+  };
+
+  const handleLike = async () => {
+    if (!product) return;
+    
+    try {
+      // Optimistic update
+      setIsLiked(!isLiked);
+      setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+      
+      // Make API call (you'll need to implement this)
+      // await productAPI.toggleLike(product._id);
+    } catch (err) {
+      // Revert optimistic update on error
+      setIsLiked(!isLiked);
+      setLikeCount(prev => isLiked ? prev + 1 : prev - 1);
+      console.error('Failed to toggle like:', err);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!product) return;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: product.title,
+          text: product.description.slice(0, 160),
+          url: window.location.href,
+        });
+      } catch (err) {
+        console.log('Share cancelled or failed:', err);
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        alert('Link copied to clipboard!');
+      } catch (err) {
+        console.error('Failed to copy link:', err);
+      }
+    }
+  };
+
   const handleStartNegotiation = () => {
     if (product) {
       router.push(`/negotiate/${product._id}`);
     }
+  };
+
+  const getTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    
+    if (diffInDays === 0) return 'Today';
+    if (diffInDays === 1) return 'Yesterday';
+    if (diffInDays < 7) return `${diffInDays} days ago`;
+    if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+    return `${Math.floor(diffInDays / 30)} months ago`;
   };
 
   const getCurrencySymbol = (currency: string) => {
@@ -196,55 +296,23 @@ const ProductDetailPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               
               {/* Image Gallery */}
-              <BackdropBlur className="rounded-2xl border border-white/20 dark:border-gray-700/50 overflow-hidden">
-                <div className="aspect-square relative">
-                  {primaryImage ? (
-                    <Image
-                      src={`http://localhost:5000${primaryImage.url}`}
-                      alt={product.title}
-                      fill
-                      className="object-cover"
-                      priority
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                      <EyeIcon className="w-16 h-16 text-gray-400" />
+              <div className="space-y-4">
+                {product.images && product.images.length > 0 ? (
+                  <ImageGallery
+                    images={product.images}
+                    productTitle={product.title}
+                  />
+                ) : (
+                  <BackdropBlur className="rounded-2xl border border-white/20 dark:border-gray-700/50 overflow-hidden">
+                    <div className="aspect-square relative bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                      <div className="text-center">
+                        <EyeIcon className="w-16 h-16 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-500 dark:text-gray-400">No image available</p>
+                      </div>
                     </div>
-                  )}
-                  
-                  {/* Urgency Badge */}
-                  {product.urgency.level === 'urgent' && (
-                    <div className="absolute top-4 left-4 px-3 py-1 bg-red-500 text-white rounded-full text-sm font-medium">
-                      🔥 Urgent Sale
-                    </div>
-                  )}
-                </div>
-
-                {/* Thumbnail Grid */}
-                {product.images.length > 1 && (
-                  <div className="p-4 grid grid-cols-4 gap-2">
-                    {product.images.map((image, index) => (
-                      <button
-                        key={index}
-                        onClick={() => setSelectedImageIndex(index)}
-                        className={`aspect-square rounded-lg overflow-hidden border-2 transition-colors ${
-                          index === selectedImageIndex 
-                            ? 'border-blue-500' 
-                            : 'border-gray-200 dark:border-gray-700'
-                        }`}
-                      >
-                        <Image
-                          src={`http://localhost:5000${image.url}`}
-                          alt={`${product.title} ${index + 1}`}
-                          width={100}
-                          height={100}
-                          className="w-full h-full object-cover"
-                        />
-                      </button>
-                    ))}
-                  </div>
+                  </BackdropBlur>
                 )}
-              </BackdropBlur>
+              </div>
 
               {/* Product Information */}
               <div className="space-y-6">
@@ -256,10 +324,10 @@ const ProductDetailPage: React.FC = () => {
                       {product.urgency.level.charAt(0).toUpperCase() + product.urgency.level.slice(1)}
                     </span>
                     <div className="flex items-center space-x-3 text-gray-500 dark:text-gray-400">
-                      <button className="hover:text-red-500 transition-colors">
+                      <button className="hover:text-red-500 transition-colors" onClick={handleLike}>
                         <HeartIcon className="w-5 h-5" />
                       </button>
-                      <button className="hover:text-blue-500 transition-colors">
+                      <button className="hover:text-blue-500 transition-colors" onClick={handleShare}>
                         <ShareIcon className="w-5 h-5" />
                       </button>
                     </div>
@@ -342,12 +410,47 @@ const ProductDetailPage: React.FC = () => {
 
                 {/* Product Stats */}
                 <BackdropBlur className="p-4 rounded-xl border border-white/20 dark:border-gray-700/50">
-                  <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                    <span>{product.analytics.views} views</span>
-                    <span>{product.analytics.likes} likes</span>
-                    <span>Listed {new Date(product.createdAt).toLocaleDateString()}</span>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <div className="flex items-center justify-center gap-1 text-gray-600 dark:text-gray-400 mb-1">
+                        <EyeIcon className="w-4 h-4" />
+                        <span className="font-semibold">{product.analytics.views}</span>
+                      </div>
+                      <div className="text-xs text-gray-500">Views</div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-center gap-1 text-gray-600 dark:text-gray-400 mb-1">
+                        <HeartIcon className="w-4 h-4" />
+                        <span className="font-semibold">{likeCount}</span>
+                      </div>
+                      <div className="text-xs text-gray-500">Likes</div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-center gap-1 text-gray-600 dark:text-gray-400 mb-1">
+                        <ClockIcon className="w-4 h-4" />
+                        <span className="font-semibold text-xs">{getTimeAgo(product.createdAt)}</span>
+                      </div>
+                      <div className="text-xs text-gray-500">Listed</div>
+                    </div>
                   </div>
                 </BackdropBlur>
+
+                {/* Product Specifications */}
+                {product.specifications && Object.keys(product.specifications).length > 0 && (
+                  <BackdropBlur className="p-6 rounded-xl border border-white/20 dark:border-gray-700/50">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                      Specifications
+                    </h3>
+                    <div className="space-y-3">
+                      {Object.entries(product.specifications).map(([key, value]) => (
+                        <div key={key} className="flex justify-between items-center py-2 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
+                          <span className="text-gray-600 dark:text-gray-400 capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                          <span className="text-gray-900 dark:text-white font-medium">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </BackdropBlur>
+                )}
               </div>
             </div>
 
@@ -394,47 +497,107 @@ const ProductDetailPage: React.FC = () => {
                   </h2>
                   
                   {product.seller ? (
-                    <>
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center">
-                          <span className="text-white font-medium">
-                            {product.seller.username.charAt(0).toUpperCase()}
-                          </span>
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center flex-shrink-0">
+                          {product.seller.avatar ? (
+                            <Image 
+                              src={product.seller.avatar} 
+                              alt={product.seller.username}
+                              width={64}
+                              height={64}
+                              className="rounded-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-white font-bold text-xl">
+                              {product.seller.username.charAt(0).toUpperCase()}
+                            </span>
+                          )}
                         </div>
-                        <div>
-                          <div className="font-medium text-gray-900 dark:text-white">
+                        
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900 dark:text-white text-lg">
                             {product.seller.username}
                           </div>
                           {hasValidRating(product.seller.profile?.rating) && (
+                            <div className="flex items-center gap-1 text-sm text-amber-500">
+                              <span>⭐</span>
+                              <span>{formatRating(product.seller.profile?.rating)}</span>
+                              <span className="text-gray-500">rating</span>
+                            </div>
+                          )}
+                          {product.seller.profile?.joinDate && (
                             <div className="text-sm text-gray-600 dark:text-gray-400">
-                              ⭐ {formatRating(product.seller.profile?.rating)} rating
+                              Member since {new Date(product.seller.profile.joinDate).getFullYear()}
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <ModernButton variant="outline" className="w-full">
-                        View Seller Profile
-                      </ModernButton>
-                    </>
-                  ) : (
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center">
-                        <span className="text-white font-medium">?</span>
+                      {/* Seller Stats */}
+                      {product.seller.profile && (
+                        <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                          {product.seller.profile.totalSales && (
+                            <div className="text-center">
+                              <div className="font-semibold text-gray-900 dark:text-white">
+                                {product.seller.profile.totalSales}
+                              </div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400">Sales</div>
+                            </div>
+                          )}
+                          {product.seller.profile.responseTime && (
+                            <div className="text-center">
+                              <div className="font-semibold text-gray-900 dark:text-white">
+                                {product.seller.profile.responseTime}
+                              </div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400">Response Time</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Seller Bio */}
+                      {product.seller.profile?.bio && (
+                        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                          <p className="text-sm text-gray-700 dark:text-gray-300">
+                            {product.seller.profile.bio}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="flex gap-2">
+                        <ModernButton variant="outline" className="flex-1">
+                          View Profile
+                        </ModernButton>
+                        <ModernButton variant="secondary" className="flex-1">
+                          Message Seller
+                        </ModernButton>
                       </div>
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white">
-                          Anonymous Seller
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          No seller information available
-                        </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center mx-auto mb-4">
+                        <span className="text-white font-bold text-xl">?</span>
+                      </div>
+                      <div className="font-medium text-gray-900 dark:text-white mb-2">
+                        Anonymous Seller
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        No seller information available
                       </div>
                     </div>
                   )}
                 </BackdropBlur>
               </div>
             </div>
+
+            {/* Related Products Section */}
+            <RelatedProducts
+              products={relatedProducts}
+              category={product.category}
+              currentProductId={product._id}
+              className="mt-12"
+            />
           </div>
         </div>
       </Layout>

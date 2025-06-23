@@ -1324,3 +1324,14 @@ html {
     gap: 1rem;
   }
 }
+
+/* Search suggestions always on top */
+.search-suggestions-dropdown {
+  z-index: 999999 !important;
+  position: relative !important;
+}
+
+.search-suggestions-container {
+  position: relative;
+  z-index: 999999 !important;
+}

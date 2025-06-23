@@ -693,6 +693,72 @@ const getCategories = async (req, res) => {
   }
 };
 
+// @desc    Get search suggestions
+// @route   GET /api/products/suggestions
+// @access  Public
+const getSearchSuggestions = async (req, res) => {
+  try {
+    const { q: query } = req.query;
+    
+    if (!query) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Search query is required'
+      });
+    }
+
+    const sanitizedQuery = sanitizers.sanitizeSearchQuery(query);
+    
+    // Search for products matching the query
+    const products = await Product.find({
+      status: 'active',
+      $text: { $search: sanitizedQuery }
+    })
+    .select('title category')
+    .limit(5)
+    .lean();
+
+    // Get matching categories
+    const categories = await Product.distinct('category', {
+      status: 'active',
+      category: { $regex: sanitizedQuery, $options: 'i' }
+    });
+
+    // Get popular search terms (you might want to implement a searches collection)
+    const popularTerms = [
+      'electronics', 'clothing', 'home', 'sports', 'books'
+    ].filter(term => term.toLowerCase().includes(sanitizedQuery.toLowerCase()));
+
+    // Get trending products (based on recent views)
+    const trendingProducts = await Product.find({
+      status: 'active',
+      'analytics.views': { $gt: 0 }
+    })
+    .select('title category analytics.views')
+    .sort({ 'analytics.views': -1, createdAt: -1 })
+    .limit(3)
+    .lean();
+
+    res.json({
+      status: 'success',
+      data: {
+        products: products.map(formatProductResponse),
+        categories,
+        popularTerms,
+        trending: trendingProducts.map(formatProductResponse),
+        query: sanitizedQuery
+      }
+    });
+
+  } catch (error) {
+    console.error('Get search suggestions error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Server error while fetching suggestions'
+    });
+  }
+};
+
 // @desc    Get similar products
 // @route   GET /api/products/:id/similar
 // @access  Public
@@ -983,6 +1049,7 @@ module.exports = {
   getTrendingProducts,
   searchProducts,
   getCategories,
+  getSearchSuggestions,
   getSimilarProducts,
   updateProductStatus,
   bulkUpdateProducts,

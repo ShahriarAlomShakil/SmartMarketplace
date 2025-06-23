@@ -125,6 +125,14 @@ export const productAPI = {
   },
 
   /**
+   * Get search suggestions
+   */
+  searchSuggestions: async (query: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/products/suggestions?q=${encodeURIComponent(query)}`);
+    return handleResponse(response);
+  },
+
+  /**
    * Get similar products
    */
   getSimilar: async (id: string) => {
