@@ -224,8 +224,12 @@ test-results/
 .env.production
 .env.staging
 
-# Cloudinary uploads
-cloudinary_*
+# Local uploads directory (but keep structure)
+uploads/*
+!uploads/.gitkeep
+!uploads/*/
+!uploads/*/.gitkeep
+*.uploaded
 
 # Sensitive files
 private_keys/

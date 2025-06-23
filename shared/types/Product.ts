@@ -7,13 +7,19 @@ export interface Product {
   condition: ProductCondition;
   images: ProductImage[];
   pricing: ProductPricing;
-  seller: {
+  seller?: {
     _id: string;
     username: string;
     avatar?: string;
-    rating: number;
-    totalSales: number;
-  };
+    profile?: {
+      rating?: {
+        average: number;
+        count: number;
+        reviews: any[];
+      };
+    };
+    totalSales?: number;
+  } | null;
   specifications: ProductSpecification[];
   tags: string[];
   location: {

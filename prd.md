@@ -40,17 +40,17 @@ Smart Marketplace is a web-based platform where users can **list products for sa
 ## 🧩 Key Features:
 
 ### 1. 🛍 Product Listing (Seller Side)
-- Modern glass-morphism card design with backdrop blur
+- Modern blurry card design with enhanced backdrop blur
 - Image upload with preview in blurred containers
 - Form with base price and lowest acceptable price
 - Listings visible to all users with smooth animations
 - Listing edit/delete feature with confirmation modals
 
 ### 2. 🤝 AI Negotiation (Buyer Side)
-- Interactive chat interface with frosted glass design
-- Real-time typing indicators with blur effects
+- Interactive chat interface with modern blurry design
+- Real-time typing indicators with enhanced blur effects
 - Gemini API generates seller-side responses
-- Modern message bubbles with backdrop blur
+- Modern message bubbles with enhanced backdrop blur
 - Stops at:
   - Agreement
   - Rejection by AI
@@ -82,17 +82,17 @@ Smart Marketplace is a web-based platform where users can **list products for sa
 ## 🎨 Design Guidelines:
 
 ### Visual Design Principles:
-- **Glass Morphism**: Semi-transparent elements with backdrop blur effects
-- **Frosted Glass**: Cards and containers with `backdrop-filter: blur()` CSS
-- **Layered Depth**: Multiple blur levels for visual hierarchy
-- **Soft Shadows**: Subtle drop shadows to enhance glass effect
-- **Gradient Overlays**: Subtle color gradients on background elements
+- **Modern Blurry Design**: Enhanced semi-transparent elements with stronger backdrop blur effects
+- **Enhanced Blur**: Cards and containers with `backdrop-filter: blur(20px+)` CSS
+- **Layered Depth**: Multiple enhanced blur levels for visual hierarchy
+- **Smooth Shadows**: Enhanced drop shadows to improve modern aesthetic
+- **Gradient Overlays**: More pronounced color gradients on background elements
 
 ### Color Palette:
-- **Primary**: Modern blues with transparency (rgba(59, 130, 246, 0.8))
-- **Secondary**: Soft purples and teals with blur backgrounds
-- **Neutral**: Light grays with glass effects for content areas
-- **Accent**: Vibrant colors for CTAs with backdrop blur
+- **Primary**: Modern blues with enhanced transparency (rgba(59, 130, 246, 0.9))
+- **Secondary**: Soft purples and teals with stronger blur backgrounds
+- **Neutral**: Light grays with enhanced modern effects for content areas
+- **Accent**: Vibrant colors for CTAs with enhanced backdrop blur
 
 ### Typography:
 - **Headings**: Clean sans-serif with semi-bold weights
@@ -101,21 +101,21 @@ Smart Marketplace is a web-based platform where users can **list products for sa
 
 ### Component Examples:
 ```css
-/* Glass Morphism Card */
-.glass-card {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+/* Modern Blurry Card */
+.modern-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
 }
 
-/* Blur Background */
+/* Enhanced Blur Background */
 .blur-background {
   background: linear-gradient(135deg, 
-    rgba(74, 144, 226, 0.3) 0%, 
-    rgba(159, 122, 234, 0.3) 100%);
-  backdrop-filter: blur(20px);
+    rgba(74, 144, 226, 0.4) 0%, 
+    rgba(159, 122, 234, 0.4) 100%);
+  backdrop-filter: blur(24px);
 }
 ```
 
@@ -130,7 +130,7 @@ Smart Marketplace is a web-based platform where users can **list products for sa
 | AI Integration   | Google Gemini API (LLM)                |
 | Database         | MongoDB                                |
 | Auth             | JWT Authentication                     |
-| Image Handling   | Cloudinary / AWS S3                    |
+| Image Handling   | Local File System                      |
 | UI/UX            | Glass morphism, Backdrop blur effects  |
 
 ---

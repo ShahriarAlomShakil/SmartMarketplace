@@ -8,16 +8,19 @@ const hpp = require('hpp');
 const rateLimit = require('express-rate-limit');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 require('dotenv').config();
 
 const connectDB = require('./src/config/database');
 const errorHandler = require('./src/middleware/errorHandler');
+const { swaggerSpec, swaggerUi, swaggerUiOptions } = require('./src/config/swagger');
 
 // Import routes
 const authRoutes = require('./src/routes/auth');
 const productRoutes = require('./src/routes/products');
-const userRoutes = require('./src/routes/users');
-const negotiationRoutes = require('./src/routes/negotiations');
+const userRoutes = require('./src/routes/users-simple');
+// const negotiationRoutes = require('./src/routes/negotiations');
+const { router: systemRoutes } = require('./src/routes/system');
 
 const app = express();
 const server = createServer(app);
@@ -40,7 +43,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
     },
   },
@@ -79,6 +82,9 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('combined'));
 }
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Make io accessible to routes
 app.use((req, res, next) => {
   req.io = io;
@@ -95,11 +101,21 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes
+// API Documentation with Swagger
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, swaggerUiOptions));
+
+// Swagger JSON endpoint
+app.get('/api/docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
+
+// API routes with specific rate limiting  
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/negotiations', negotiationRoutes);
+// app.use('/api/negotiations', negotiationRoutes);
+app.use('/api/system', systemRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

@@ -1,14 +1,29 @@
 const multer = require('multer');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cloudinary = require('cloudinary').v2;
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
+// Ensure upload directories exist
+const ensureUploadDirectories = () => {
+  const uploadDirs = [
+    path.join(__dirname, '../../uploads'),
+    path.join(__dirname, '../../uploads/products'),
+    path.join(__dirname, '../../uploads/avatars'),
+    path.join(__dirname, '../../uploads/temp')
+  ];
+
+  uploadDirs.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  });
+};
+
+// Initialize upload directories
+ensureUploadDirectories();
+
+// Memory storage for processing before upload
+const memoryStorage = multer.memoryStorage();
 
 // File filter function
 const fileFilter = (req, file, cb) => {
@@ -27,66 +42,49 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Cloudinary storage configuration for product images
-const productImageStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'smart-marketplace/products',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-    transformation: [
-      { width: 1200, height: 1200, crop: 'limit' },
-      { quality: 'auto' },
-      { fetch_format: 'auto' }
-    ],
-    public_id: (req, file) => {
-      const timestamp = Date.now();
-      const filename = file.originalname.split('.')[0];
-      return `product-${timestamp}-${filename}`;
-    }
-  }
-});
+// Generate unique filename
+const generateFileName = (originalname, prefix = 'file') => {
+  const timestamp = Date.now();
+  const randomString = crypto.randomBytes(6).toString('hex');
+  const ext = path.extname(originalname);
+  return `${prefix}-${timestamp}-${randomString}${ext}`;
+};
 
-// Cloudinary storage configuration for user avatars
-const avatarStorage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'smart-marketplace/avatars',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-    transformation: [
-      { width: 400, height: 400, crop: 'fill', gravity: 'face' },
-      { quality: 'auto' },
-      { fetch_format: 'auto' }
-    ],
-    public_id: (req, file) => {
-      const timestamp = Date.now();
-      return `avatar-${req.user._id}-${timestamp}`;
-    }
-  }
-});
-
-// Local storage configuration (fallback)
-const localStorage = multer.diskStorage({
+// Local storage configuration for product images
+const productImageStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, '../../uploads');
-    
-    // Create directory if it doesn't exist
-    const fs = require('fs');
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-    
+    const uploadPath = path.join(__dirname, '../../uploads/products');
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    const timestamp = Date.now();
-    const ext = path.extname(file.originalname);
-    const filename = `${file.fieldname}-${timestamp}${ext}`;
+    const filename = generateFileName(file.originalname, 'product');
     cb(null, filename);
   }
 });
 
-// Memory storage for processing before upload
-const memoryStorage = multer.memoryStorage();
+// Local storage configuration for user avatars
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../../uploads/avatars');
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const filename = generateFileName(file.originalname, `avatar-${req.user?._id || 'user'}`);
+    cb(null, filename);
+  }
+});
+
+// General local storage configuration
+const generalStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '../../uploads/temp');
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const filename = generateFileName(file.originalname);
+    cb(null, filename);
+  }
+});
 
 // File size limits
 const limits = {
@@ -117,17 +115,23 @@ const uploadConfigs = {
   }),
 
   // General file upload with local storage
-  local: multer({
-    storage: localStorage,
+  general: multer({
+    storage: generalStorage,
     fileFilter,
-    limits
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB
+      files: 10
+    }
   }),
 
   // Memory upload for processing
   memory: multer({
     storage: memoryStorage,
     fileFilter,
-    limits
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB
+      files: 10
+    }
   })
 };
 
@@ -172,46 +176,60 @@ const handleUploadError = (error, req, res, next) => {
 
 // Helper functions
 const uploadHelpers = {
-  // Delete file from Cloudinary
-  deleteFromCloudinary: async (publicId) => {
+  // Delete file from local storage
+  deleteFromLocal: async (filename, subfolder = '') => {
     try {
-      const result = await cloudinary.uploader.destroy(publicId);
-      return result;
+      const filePath = path.join(__dirname, '../../uploads', subfolder, filename);
+      
+      if (fs.existsSync(filePath)) {
+        await fs.promises.unlink(filePath);
+        return { success: true, message: 'File deleted successfully' };
+      } else {
+        return { success: false, message: 'File not found' };
+      }
     } catch (error) {
-      console.error('Error deleting from Cloudinary:', error);
+      console.error('Error deleting file:', error);
       throw error;
     }
   },
 
-  // Get optimized image URL
-  getOptimizedImageUrl: (publicId, options = {}) => {
-    const defaultOptions = {
-      quality: 'auto',
-      fetch_format: 'auto'
-    };
-    
-    return cloudinary.url(publicId, { ...defaultOptions, ...options });
+  // Get local file URL
+  getFileUrl: (filename, subfolder = '') => {
+    return `/uploads/${subfolder}${subfolder ? '/' : ''}${filename}`;
   },
 
-  // Generate image thumbnails
-  generateThumbnails: (publicId) => {
-    const sizes = [
-      { name: 'thumbnail', width: 150, height: 150 },
-      { name: 'small', width: 300, height: 300 },
-      { name: 'medium', width: 600, height: 600 },
-      { name: 'large', width: 1200, height: 1200 }
-    ];
+  // Move file from temp to permanent location
+  moveFile: async (tempFilename, targetFolder, newFilename = null) => {
+    try {
+      const tempPath = path.join(__dirname, '../../uploads/temp', tempFilename);
+      const targetPath = path.join(__dirname, '../../uploads', targetFolder, newFilename || tempFilename);
+      
+      await fs.promises.rename(tempPath, targetPath);
+      return { success: true, filename: newFilename || tempFilename };
+    } catch (error) {
+      console.error('Error moving file:', error);
+      throw error;
+    }
+  },
 
-    return sizes.map(size => ({
-      size: size.name,
-      url: cloudinary.url(publicId, {
-        width: size.width,
-        height: size.height,
-        crop: 'fill',
-        quality: 'auto',
-        fetch_format: 'auto'
-      })
-    }));
+  // Clean up temp files older than 1 hour
+  cleanupTempFiles: async () => {
+    try {
+      const tempDir = path.join(__dirname, '../../uploads/temp');
+      const files = await fs.promises.readdir(tempDir);
+      const oneHourAgo = Date.now() - (60 * 60 * 1000);
+
+      for (const file of files) {
+        const filePath = path.join(tempDir, file);
+        const stats = await fs.promises.stat(filePath);
+        
+        if (stats.mtime.getTime() < oneHourAgo) {
+          await fs.promises.unlink(filePath);
+        }
+      }
+    } catch (error) {
+      console.error('Error cleaning up temp files:', error);
+    }
   },
 
   // Validate uploaded files
@@ -235,15 +253,32 @@ const uploadHelpers = {
     }
 
     return { valid: true };
+  },
+
+  // Generate multiple image sizes (placeholder for future image processing)
+  generateImageSizes: (filename, subfolder = 'products') => {
+    const baseUrl = `/uploads/${subfolder}/${filename}`;
+    
+    // For now, return the same image for all sizes
+    // In the future, you could implement image resizing here using sharp or similar
+    return {
+      thumbnail: baseUrl,
+      small: baseUrl,
+      medium: baseUrl,
+      large: baseUrl,
+      original: baseUrl
+    };
   }
 };
+
+// Schedule cleanup of temp files every hour
+setInterval(uploadHelpers.cleanupTempFiles, 60 * 60 * 1000);
 
 module.exports = {
   upload: uploadConfigs.productImages,
   uploadAvatar: uploadConfigs.avatar,
-  uploadLocal: uploadConfigs.local,
+  uploadGeneral: uploadConfigs.general,
   uploadMemory: uploadConfigs.memory,
   handleUploadError,
-  uploadHelpers,
-  cloudinary
+  uploadHelpers
 };

@@ -46,12 +46,10 @@ services:
       REDIS_URL: redis://:redispassword123@redis:6379
       JWT_SECRET: development-jwt-secret-key-change-in-production
       GEMINI_API_KEY: ${GEMINI_API_KEY}
-      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
-      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
     volumes:
       - ./backend:/app
       - /app/node_modules
+      - ./backend/uploads:/app/uploads
     depends_on:
       - mongodb
       - redis

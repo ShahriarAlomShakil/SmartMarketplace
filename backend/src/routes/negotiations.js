@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { body, query } = require('express-validator');
 const negotiationController = require('../controllers/negotiationController');
-const auth = require('../middleware/auth');
-const validate = require('../middleware/validation');
+const { auth } = require('../middleware/auth');
+const { validate } = require('../middleware/validation');
 
 // @route   GET /api/negotiations
 // @desc    Get user's negotiations

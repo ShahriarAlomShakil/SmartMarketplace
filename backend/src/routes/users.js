@@ -2,9 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { body, query } = require('express-validator');
 const userController = require('../controllers/userController');
-const auth = require('../middleware/auth');
-const validate = require('../middleware/validation');
-const upload = require('../middleware/upload');
+const { auth } = require('../middleware/auth');
+const { validate } = require('../middleware/validation');
+const { uploadAvatar } = require('../middleware/upload');
 
 // @route   GET /api/users/profile
 // @desc    Get current user profile
@@ -73,7 +73,7 @@ router.put('/:id/profile', [
 // @access  Private (Self only)
 router.post('/:id/avatar', [
   auth,
-  upload.single('avatar')
+  uploadAvatar.single('avatar')
 ], userController.uploadAvatar);
 
 // @route   PUT /api/users/:id/preferences

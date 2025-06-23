@@ -40,7 +40,6 @@ A modern, intelligent marketplace where users can list products for sale and buy
 - Node.js 18+ 
 - MongoDB 4.4+
 - Google Gemini API Key
-- Cloudinary Account (for image storage)
 
 ### Installation
 
@@ -81,11 +80,6 @@ JWT_REFRESH_SECRET=your-refresh-token-secret
 
 # Google Gemini API
 GEMINI_API_KEY=your-google-gemini-api-key
-
-# Cloudinary (for image storage)
-CLOUDINARY_CLOUD_NAME=your-cloudinary-cloud-name
-CLOUDINARY_API_KEY=your-cloudinary-api-key
-CLOUDINARY_API_SECRET=your-cloudinary-api-secret
 
 # Frontend URL
 FRONTEND_URL=http://localhost:3000
@@ -177,7 +171,7 @@ For complete API documentation, visit `/api/docs` when running the server.
 - **Backend**: Express.js, Node.js, MongoDB, Socket.io
 - **AI**: Google Gemini API
 - **Authentication**: JWT with refresh tokens
-- **File Storage**: Cloudinary
+- **File Storage**: Local File System
 - **Real-time**: WebSocket (Socket.io)
 
 ### Project Structure
@@ -249,7 +243,7 @@ npm run test:e2e
 ### Environment Setup
 1. Set up production environment variables
 2. Configure MongoDB Atlas or self-hosted MongoDB
-3. Set up Cloudinary for image storage
+3. Configure file storage directory and permissions
 4. Configure domain and SSL certificates
 
 ### Build and Deploy
@@ -291,7 +285,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - **Google Gemini AI** for intelligent conversation capabilities
-- **Cloudinary** for image storage and optimization
 - **MongoDB** for flexible data storage
 - **Next.js** for the amazing React framework
 - **Tailwind CSS** for utility-first styling
