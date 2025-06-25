@@ -30,6 +30,24 @@ const strengthCriteria: StrengthCriteria[] = [
   {
     label: 'Contains special character',
     test: (password) => /[!@#$%^&*(),.?":{}|<>]/.test(password)
+  },
+  {
+    label: 'No weak patterns',
+    test: (password) => {
+      const weakPatterns = [
+        /123456/, /password/, /qwerty/, /admin/, /letmein/,
+        /welcome/, /monkey/, /dragon/, /master/, /superman/
+      ];
+      return !weakPatterns.some(pattern => pattern.test(password.toLowerCase()));
+    }
+  },
+  {
+    label: 'No repeated characters',
+    test: (password) => !/(.)\1{3,}/.test(password)
+  },
+  {
+    label: 'No sequential characters',
+    test: (password) => !/(?:abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz|012|123|234|345|456|567|678|789)/i.test(password)
   }
 ];
 

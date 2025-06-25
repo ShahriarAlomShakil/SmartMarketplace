@@ -5,7 +5,8 @@ import {
   BlurCard, 
   GlassButton, 
   BackdropBlur, 
-  ThemeToggle 
+  ThemeToggle,
+  ModernButton
 } from '../components/ui';
 
 // Animation hook for staggered entrance effects

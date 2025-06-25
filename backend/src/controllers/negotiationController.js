@@ -5,6 +5,11 @@ const { getGeminiModel, geminiConfig } = require('../config/gemini');
 const { validationResult } = require('express-validator');
 const { sanitizers } = require('../middleware/validation');
 
+// Day 12 Enhancement - Import enhanced processing systems
+const responseProcessor = require('../utils/responseProcessor');
+const contextManager = require('../utils/contextManager');
+const GeminiService = require('../services/geminiService');
+
 // Helper function to format negotiation response
 const formatNegotiationResponse = (negotiation) => {
   return {
@@ -32,10 +37,9 @@ const formatNegotiationResponse = (negotiation) => {
 // Helper function to generate AI response using Gemini
 const generateAIResponse = async (negotiation, userMessage, userOffer) => {
   try {
-    const geminiService = require('../services/geminiService');
     const product = negotiation.product;
     
-    // Build context for AI
+    // Build enhanced context for AI with Day 12 improvements
     const context = {
       productTitle: product.title,
       basePrice: product.pricing.basePrice,
@@ -45,27 +49,46 @@ const generateAIResponse = async (negotiation, userMessage, userOffer) => {
       maxRounds: negotiation.maxRounds,
       urgency: product.urgency?.level || 'medium',
       personality: product.seller?.personality || 'professional',
+      category: product.category || 'general',
       conversationHistory: negotiation.messages.slice(-5),
       userMessage: userMessage,
-      userId: negotiation.buyer.toString()
+      userId: negotiation.buyer.toString(),
+      negotiationId: negotiation._id.toString()
     };
 
-    // Use enhanced Gemini service
-    const aiResponse = await geminiService.generateNegotiationResponse(context);
-    
+    // Use enhanced response processing pipeline
+    const rawResponse = await GeminiService.generateNegotiationResponse(context);
+    const processedResponse = await responseProcessor.processResponse(rawResponse.content, context);
+
+    // Store conversation context for future reference
+    contextManager.addMessage(negotiation._id.toString(), {
+      content: userMessage,
+      sender: 'buyer',
+      action: 'message',
+      offer: userOffer ? { amount: userOffer } : null
+    });
+
+    contextManager.addMessage(negotiation._id.toString(), {
+      content: processedResponse.data.message,
+      sender: 'ai',
+      action: processedResponse.data.action,
+      offer: processedResponse.data.offer,
+      confidence: processedResponse.data.confidence / 100
+    });
+
     return {
-      content: aiResponse.content,
-      action: aiResponse.action,
-      offer: aiResponse.offer,
-      confidence: aiResponse.confidence,
-      reasoning: aiResponse.reasoning || '',
-      metadata: aiResponse.metadata
+      content: processedResponse.data.message,
+      action: processedResponse.data.action,
+      offer: processedResponse.data.offer,
+      confidence: processedResponse.data.confidence / 100,
+      reasoning: processedResponse.data.reasoning || '',
+      metadata: processedResponse.data.metadata
     };
 
   } catch (error) {
     console.error('Error generating AI response:', error);
     
-    // Enhanced fallback response
+    // Enhanced fallback response with better logic
     const { currentOffer, basePrice, minPrice } = {
       currentOffer: userOffer || negotiation.pricing.currentOffer,
       basePrice: negotiation.product.pricing.basePrice,
@@ -82,13 +105,21 @@ const generateAIResponse = async (negotiation, userMessage, userOffer) => {
     let action = 'continue';
     let offer = null;
 
-    // Simple fallback logic
+    // Enhanced fallback logic
     if (currentOffer >= minPrice * 1.1) {
       action = 'counter';
       const strategicPrice = Math.round(currentOffer + ((basePrice - currentOffer) * 0.5));
-      offer = { amount: strategicPrice, final: false };
+      offer = { amount: strategicPrice, final: false, formatted: `$${strategicPrice.toLocaleString()}` };
     } else if (currentOffer < minPrice * 0.8) {
       action = 'reject';
+    } else if (negotiation.rounds >= negotiation.maxRounds - 1) {
+      // Final round logic
+      if (currentOffer >= minPrice) {
+        action = 'accept';
+        offer = { amount: currentOffer, final: true, formatted: `$${currentOffer.toLocaleString()}` };
+      } else {
+        action = 'reject';
+      }
     }
 
     return {
@@ -99,42 +130,13 @@ const generateAIResponse = async (negotiation, userMessage, userOffer) => {
       reasoning: 'Fallback response - AI service temporarily unavailable',
       metadata: {
         model: 'fallback',
+        isFallback: true,
         error: error.message,
         timestamp: new Date().toISOString()
       }
     };
   }
 };
-    let counterOffer = null;
-    let reasoning = '';
-    
-    // Simple parsing logic - in production, you might want more sophisticated parsing
-    if (response.toLowerCase().includes('accept')) {
-      action = 'accept';
-    } else if (response.toLowerCase().includes('reject') || response.toLowerCase().includes('decline')) {
-      action = 'reject';
-    } else if (response.toLowerCase().includes('counter')) {
-      action = 'counter';
-      
-      // Extract counter-offer amount (simple regex)
-      const counterMatch = response.match(/\$(\d+(?:\.\d{2})?)/);
-      if (counterMatch) {
-        const amount = parseFloat(counterMatch[1]);
-        if (amount >= product.pricing.minPrice && amount <= product.pricing.basePrice) {
-          counterOffer = amount;
-        }
-      }
-      
-      // If no valid counter-offer found, generate one
-      if (!counterOffer) {
-        metadata: {
-          model: 'fallback',
-          error: error.message,
-          timestamp: new Date().toISOString()
-        }
-      };
-    }
-  };
 
 // @desc    Start a new negotiation
 // @route   POST /api/negotiations/start
@@ -684,10 +686,225 @@ const getUserNegotiations = async (req, res) => {
   }
 };
 
+// @desc    Accept current offer
+// @route   POST /api/negotiations/:id/accept
+// @access  Private
+const acceptOffer = async (req, res) => {
+  try {
+    res.json({
+      status: 'success',
+      message: 'Offer accepted functionality coming soon'
+    });
+  } catch (error) {
+    console.error('Accept offer error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Server error while accepting offer'
+    });
+  }
+};
+
+// @desc    Reject current offer
+// @route   POST /api/negotiations/:id/reject
+// @access  Private
+const rejectOffer = async (req, res) => {
+  try {
+    res.json({
+      status: 'success',
+      message: 'Offer rejected functionality coming soon'
+    });
+  } catch (error) {
+    console.error('Reject offer error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Server error while rejecting offer'
+    });
+  }
+};
+
+// @desc    Cancel negotiation
+// @route   POST /api/negotiations/:id/cancel
+// @access  Private
+const cancelNegotiation = async (req, res) => {
+  try {
+    res.json({
+      status: 'success',
+      message: 'Cancel negotiation functionality coming soon'
+    });
+  } catch (error) {
+    console.error('Cancel negotiation error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Server error while canceling negotiation'
+    });
+  }
+};
+
+// @desc    Get negotiation history
+// @route   GET /api/negotiations/history
+// @access  Private
+const getNegotiationHistory = async (req, res) => {
+  try {
+    res.json({
+      status: 'success',
+      data: { negotiations: [] },
+      message: 'Negotiation history functionality coming soon'
+    });
+  } catch (error) {
+    console.error('Get negotiation history error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Server error while fetching negotiation history'
+    });
+  }
+};
+
+// @desc    Get product negotiations
+// @route   GET /api/negotiations/product/:productId
+// @access  Private
+const getProductNegotiations = async (req, res) => {
+  try {
+    res.json({
+      status: 'success',
+      data: { negotiations: [] },
+      message: 'Product negotiations functionality coming soon'
+    });
+  } catch (error) {
+    console.error('Get product negotiations error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Server error while fetching product negotiations'
+    });
+  }
+};
+
+// @desc    Get active negotiations
+// @route   GET /api/negotiations/active
+// @access  Private
+const getActiveNegotiations = async (req, res) => {
+  try {
+    res.json({
+      status: 'success',
+      data: { negotiations: [] },
+      message: 'Active negotiations functionality coming soon'
+    });
+  } catch (error) {
+    console.error('Get active negotiations error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Server error while fetching active negotiations'
+    });
+  }
+};
+
+// @desc    Get completed negotiations
+// @route   GET /api/negotiations/completed
+// @access  Private
+const getCompletedNegotiations = async (req, res) => {
+  try {
+    res.json({
+      status: 'success',
+      data: { negotiations: [] },
+      message: 'Completed negotiations functionality coming soon'
+    });
+  } catch (error) {
+    console.error('Get completed negotiations error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Server error while fetching completed negotiations'
+    });
+  }
+};
+
+// @desc    Get negotiation analytics
+// @route   GET /api/negotiations/analytics
+// @access  Private
+const getNegotiationAnalytics = async (req, res) => {
+  try {
+    res.json({
+      status: 'success',
+      data: { analytics: {} },
+      message: 'Negotiation analytics functionality coming soon'
+    });
+  } catch (error) {
+    console.error('Get negotiation analytics error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Server error while fetching negotiation analytics'
+    });
+  }
+};
+
+// @desc    Send typing indicator
+// @route   POST /api/negotiations/:id/typing
+// @access  Private
+const sendTypingIndicator = async (req, res) => {
+  try {
+    res.json({
+      status: 'success',
+      message: 'Typing indicator functionality coming soon'
+    });
+  } catch (error) {
+    console.error('Send typing indicator error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Server error while sending typing indicator'
+    });
+  }
+};
+
+// @desc    Mark messages as read
+// @route   POST /api/negotiations/:id/read
+// @access  Private
+const markMessagesAsRead = async (req, res) => {
+  try {
+    res.json({
+      status: 'success',
+      message: 'Mark messages as read functionality coming soon'
+    });
+  } catch (error) {
+    console.error('Mark messages as read error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Server error while marking messages as read'
+    });
+  }
+};
+
+// @desc    Get AI suggestions
+// @route   GET /api/negotiations/:id/ai-suggestions
+// @access  Private
+const getAISuggestions = async (req, res) => {
+  try {
+    res.json({
+      status: 'success',
+      data: { suggestions: [] },
+      message: 'AI suggestions functionality coming soon'
+    });
+  } catch (error) {
+    console.error('Get AI suggestions error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Server error while fetching AI suggestions'
+    });
+  }
+};
+
 module.exports = {
   startNegotiation,
   sendMessage,
   sendOffer,
   getNegotiation,
-  getUserNegotiations
+  getUserNegotiations,
+  acceptOffer,
+  rejectOffer,
+  cancelNegotiation,
+  getNegotiationHistory,
+  getProductNegotiations,
+  getActiveNegotiations,
+  getCompletedNegotiations,
+  getNegotiationAnalytics,
+  sendTypingIndicator,
+  markMessagesAsRead,
+  getAISuggestions
 };

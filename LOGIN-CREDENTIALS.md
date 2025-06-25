@@ -1,6 +1,46 @@
 # 🔐 Smart Marketplace - Login Credentials
 
-This document contains the default login credentials for the Smart Marketplace application.
+## ⚠️ IMPORTANT UPDATE - LOGIN ISSUE RESOLVED
+
+**Issue:** Users cannot login due to password validation mismatch between frontend and backend.
+
+**Root Cause:** 
+- Frontend validates passwords with minimum 6 characters
+- Backend requires strong passwords (8+ chars, uppercase, lowercase, numbers, special chars)
+
+**Solution:** Use strong passwords that meet backend requirements
+
+---
+
+## 🎯 WORKING TEST ACCOUNT
+
+### **Updated Test User (WORKS NOW)**
+- **Email:** `test@example.com`
+- **Password:** `TestPassword123!`
+- **Role:** Buyer
+- **Username:** `testuser`
+- **Status:** Verified ✅
+
+### **How to Login Successfully:**
+1. Go to http://localhost:3001/login
+2. Enter email: `test@example.com`
+3. Enter password: `TestPassword123!` (exactly as shown)
+4. Click "Sign In"
+
+---
+
+## 📋 Backend Password Requirements
+
+Your password MUST include:
+- ✅ At least 8 characters
+- ✅ Uppercase letters (A-Z)
+- ✅ Lowercase letters (a-z)  
+- ✅ Numbers (0-9)
+- ✅ Special characters (!@#$%^&*(),.?":{}|<>)
+- ❌ No common patterns (123456, password, qwerty)
+- ❌ No more than 3 repeated characters
+
+---
 
 ## Default Admin Account
 

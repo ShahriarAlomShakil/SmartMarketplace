@@ -76,6 +76,11 @@ router.post('/:id/avatar', [
   uploadAvatar.single('avatar')
 ], userController.uploadAvatar);
 
+// @route   POST /api/users/avatar
+// @desc    Upload user avatar
+// @access  Private
+router.post('/avatar', [auth, uploadAvatar], userController.uploadAvatar);
+
 // @route   PUT /api/users/:id/preferences
 // @desc    Update user preferences
 // @access  Private (Self only)

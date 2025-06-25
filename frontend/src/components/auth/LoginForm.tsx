@@ -70,18 +70,29 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('🚀 LoginForm: Form submitted');
+    console.log('📝 LoginForm: Form data:', { email: formData.email, password: '***' });
+    console.log('🔍 LoginForm: Validation state:', { fieldErrors, isFormValid: isFormValid(formData) });
+    
     // Validate all fields
     if (!isFormValid(formData)) {
+      console.log('❌ LoginForm: Form validation failed');
       return;
     }
 
+    console.log('✅ LoginForm: Form validation passed, calling login...');
     const success = await login(formData);
+    console.log('📊 LoginForm: Login result:', success);
+    
     if (success) {
+      console.log('✅ LoginForm: Login successful, redirecting...');
       if (onSuccess) {
         onSuccess();
       } else {
         router.push(redirectTo);
       }
+    } else {
+      console.log('❌ LoginForm: Login failed');
     }
   };
 

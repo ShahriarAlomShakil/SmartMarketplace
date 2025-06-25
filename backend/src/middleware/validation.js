@@ -27,21 +27,60 @@ const validate = (req, res, next) => {
 
 // Custom validation helpers
 const customValidators = {
-  // Check if password is strong enough
+  // Enhanced strong password validation
   isStrongPassword: (password) => {
     const minLength = 8;
+    const maxLength = 128;
     const hasUpperCase = /[A-Z]/.test(password);
     const hasLowerCase = /[a-z]/.test(password);
     const hasNumbers = /\d/.test(password);
     const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    
+    // Check for common weak patterns
+    const weakPatterns = [
+      /123456/, /password/, /qwerty/, /admin/, /letmein/,
+      /welcome/, /monkey/, /dragon/, /master/, /superman/
+    ];
+    
+    const hasWeakPattern = weakPatterns.some(pattern => pattern.test(password.toLowerCase()));
+    
+    // Check for repeated characters (more than 3 in a row)
+    const hasRepeatedChars = /(.)\1{3,}/.test(password);
+    
+    // Check for sequential characters
+    const hasSequential = /(?:abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz|012|123|234|345|456|567|678|789)/i.test(password);
 
     return (
       password.length >= minLength &&
+      password.length <= maxLength &&
       hasUpperCase &&
       hasLowerCase &&
       hasNumbers &&
-      hasSpecialChar
+      hasSpecialChar &&
+      !hasWeakPattern &&
+      !hasRepeatedChars &&
+      !hasSequential
     );
+  },
+
+  // Get password strength score (0-100)
+  getPasswordStrength: (password) => {
+    let score = 0;
+    
+    if (password.length >= 8) score += 20;
+    if (password.length >= 12) score += 10;
+    if (/[A-Z]/.test(password)) score += 15;
+    if (/[a-z]/.test(password)) score += 15;
+    if (/\d/.test(password)) score += 15;
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score += 15;
+    if (password.length >= 16) score += 10;
+    
+    // Deduct points for common weaknesses
+    const weakPatterns = [/123456/, /password/, /qwerty/];
+    if (weakPatterns.some(pattern => pattern.test(password.toLowerCase()))) score -= 30;
+    if (/(.)\1{2,}/.test(password)) score -= 10; // Repeated characters
+    
+    return Math.max(0, Math.min(100, score));
   },
 
   // Check if email domain is allowed

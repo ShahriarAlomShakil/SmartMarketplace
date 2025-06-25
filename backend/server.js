@@ -13,13 +13,17 @@ require('dotenv').config();
 
 const connectDB = require('./src/config/database');
 const errorHandler = require('./src/middleware/errorHandler');
+const SecurityMiddleware = require('./src/middleware/securityMiddleware');
 const { swaggerSpec, swaggerUi, swaggerUiOptions } = require('./src/config/swagger');
+const SocketHandler = require('./src/utils/socketHandler');
 
 // Import routes
 const authRoutes = require('./src/routes/auth');
+const profileRoutes = require('./src/routes/profile');
 const productRoutes = require('./src/routes/products');
 const userRoutes = require('./src/routes/users-simple');
-// const negotiationRoutes = require('./src/routes/negotiations');
+const negotiationRoutes = require('./src/routes/negotiations');
+const conversationRoutes = require('./src/routes/conversations');
 const { router: systemRoutes } = require('./src/routes/system');
 
 const app = express();
@@ -37,17 +41,11 @@ const io = new Server(server, {
 // Connect to MongoDB
 connectDB();
 
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  },
-}));
+// Enhanced Security middleware
+app.use(SecurityMiddleware.securityHeaders());
+app.use(SecurityMiddleware.securityLogger());
+app.use(SecurityMiddleware.suspiciousActivityDetection());
+app.use(SecurityMiddleware.apiVersioning());
 
 // Rate limiting
 const limiter = rateLimit({
@@ -61,7 +59,11 @@ app.use('/api/', limiter);
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: [
+    process.env.FRONTEND_URL || "http://localhost:3000",
+    "http://localhost:3001",  // Add port 3001 for development
+    "http://localhost:3000"   // Keep original port for compatibility
+  ],
   credentials: true,
   optionsSuccessStatus: 200
 }));
@@ -88,6 +90,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Make io accessible to routes
 app.use((req, res, next) => {
   req.io = io;
+  req.socketHandler = socketHandler;
   next();
 });
 
@@ -110,13 +113,16 @@ app.get('/api/docs.json', (req, res) => {
   res.send(swaggerSpec);
 });
 
-// API routes with specific rate limiting  
+// API routes with specific rate limiting and session timeout
 app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/ai', require('./src/routes/ai')); // New AI service routes
-// app.use('/api/negotiations', negotiationRoutes);
+app.use('/api/profile', SecurityMiddleware.sessionTimeout(30), profileRoutes);
+app.use('/api/products', SecurityMiddleware.sessionTimeout(30), productRoutes);
+app.use('/api/users', SecurityMiddleware.sessionTimeout(30), userRoutes);
+app.use('/api/ai', SecurityMiddleware.sessionTimeout(15), require('./src/routes/ai')); // Shorter timeout for AI routes
+app.use('/api/negotiations', SecurityMiddleware.sessionTimeout(30), negotiationRoutes);
+app.use('/api/conversations', SecurityMiddleware.sessionTimeout(30), conversationRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/profile', SecurityMiddleware.sessionTimeout(30), profileRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -129,42 +135,11 @@ app.use('*', (req, res) => {
 // Global error handler
 app.use(errorHandler);
 
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.id}`);
+// Socket.IO connection handling with enhanced features
+const socketHandler = new SocketHandler(io);
+socketHandler.initialize();
 
-  // Join a product negotiation room
-  socket.on('join-negotiation', (productId) => {
-    socket.join(`product-${productId}`);
-    console.log(`User ${socket.id} joined negotiation for product ${productId}`);
-  });
-
-  // Leave a product negotiation room
-  socket.on('leave-negotiation', (productId) => {
-    socket.leave(`product-${productId}`);
-    console.log(`User ${socket.id} left negotiation for product ${productId}`);
-  });
-
-  // Handle typing indicator
-  socket.on('typing-start', (data) => {
-    socket.to(`product-${data.productId}`).emit('user-typing', {
-      userId: data.userId,
-      isTyping: true
-    });
-  });
-
-  socket.on('typing-stop', (data) => {
-    socket.to(`product-${data.productId}`).emit('user-typing', {
-      userId: data.userId,
-      isTyping: false
-    });
-  });
-
-  // Handle disconnection
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id}`);
-  });
-});
+console.log('🚀 Enhanced WebSocket handler initialized');
 
 const PORT = process.env.PORT || 5000;
 

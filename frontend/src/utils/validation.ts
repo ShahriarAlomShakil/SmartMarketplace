@@ -48,15 +48,40 @@ export const validationRules = {
   
   strongPassword: {
     test: (value: string) => {
+      const minLength = 8;
+      const maxLength = 128;
+      const hasUpperCase = /[A-Z]/.test(value);
+      const hasLowerCase = /[a-z]/.test(value);
+      const hasNumbers = /\d/.test(value);
+      const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(value);
+      
+      // Check for common weak patterns
+      const weakPatterns = [
+        /123456/, /password/, /qwerty/, /admin/, /letmein/,
+        /welcome/, /monkey/, /dragon/, /master/, /superman/
+      ];
+      
+      const hasWeakPattern = weakPatterns.some(pattern => pattern.test(value.toLowerCase()));
+      
+      // Check for repeated characters (more than 3 in a row)
+      const hasRepeatedChars = /(.)\1{3,}/.test(value);
+      
+      // Check for sequential characters
+      const hasSequential = /(?:abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz|012|123|234|345|456|567|678|789)/i.test(value);
+
       return (
-        value.length >= 8 &&
-        /[A-Z]/.test(value) &&
-        /[a-z]/.test(value) &&
-        /\d/.test(value) &&
-        /[!@#$%^&*(),.?":{}|<>]/.test(value)
+        value.length >= minLength &&
+        value.length <= maxLength &&
+        hasUpperCase &&
+        hasLowerCase &&
+        hasNumbers &&
+        hasSpecialChar &&
+        !hasWeakPattern &&
+        !hasRepeatedChars &&
+        !hasSequential
       );
     },
-    message: 'Password must contain at least 8 characters, including uppercase, lowercase, number, and special character'
+    message: 'Password must be 8-128 characters with uppercase, lowercase, number, special character, and no weak patterns or sequential characters'
   },
   
   username: {
@@ -118,7 +143,7 @@ export const authValidationSchemas = {
     password: {
       required: true,
       requiredMessage: 'Password is required',
-      rules: [validationRules.minLength(6)]
+      rules: [validationRules.minLength(8)]  // Updated to match backend minimum
     }
   },
   

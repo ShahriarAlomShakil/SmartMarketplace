@@ -82,10 +82,10 @@ router.post('/register', [
     .normalizeEmail()
     .withMessage('Please provide a valid email'),
   body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
+    .isLength({ min: 8 })
+    .withMessage('Password must be at least 8 characters long')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])/)
+    .withMessage('Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
   body('firstName')
     .optional()
     .isLength({ min: 1, max: 50 })
@@ -249,9 +249,51 @@ router.post('/verify-email', [
   validate
 ], authController.verifyEmail);
 
+// Security and Account Management Routes
+
+// @route   GET /api/auth/security-info
+// @desc    Get user security information
+// @access  Private
+router.get('/security-info', auth, authController.getSecurityInfo);
+
+// @route   POST /api/auth/revoke-all-sessions
+// @desc    Revoke all sessions (force logout on all devices)
+// @access  Private
+router.post('/revoke-all-sessions', [
+  auth,
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required'),
+  validate
+], authController.revokeAllSessions);
+
+// @route   GET /api/auth/account-activity
+// @desc    Get account activity summary
+// @access  Private
+router.get('/account-activity', auth, authController.getAccountActivity);
+
+// @route   DELETE /api/auth/account
+// @desc    Delete user account (GDPR compliance)
+// @access  Private
+router.delete('/account', [
+  auth,
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required'),
+  body('confirmDeletion')
+    .equals('DELETE MY ACCOUNT')
+    .withMessage('Please confirm account deletion by typing "DELETE MY ACCOUNT"'),
+  validate
+], authController.deleteAccount);
+
 // @route   POST /api/auth/resend-verification
 // @desc    Resend email verification
 // @access  Private
 router.post('/resend-verification', auth, authController.resendVerification);
+
+// @route   DELETE /api/auth/delete-account
+// @desc    Delete user account
+// @access  Private
+router.delete('/delete-account', auth, authController.deleteAccount);
 
 module.exports = router;

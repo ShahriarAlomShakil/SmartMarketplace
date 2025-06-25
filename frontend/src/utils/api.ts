@@ -283,6 +283,10 @@ export const authAPI = {
    * Login user
    */
   login: async (email: string, password: string) => {
+    console.log('🌐 API: Login request started');
+    console.log('📡 API: Target URL:', `${API_BASE_URL}/api/auth/login`);
+    console.log('📝 API: Request data:', { email, password: '***' });
+    
     const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: {
@@ -291,7 +295,12 @@ export const authAPI = {
       body: JSON.stringify({ email, password }),
     });
     
-    return handleResponse(response);
+    console.log('📡 API: Response status:', response.status);
+    console.log('📡 API: Response ok:', response.ok);
+    
+    const result = await handleResponse(response);
+    console.log('✅ API: Login response processed successfully');
+    return result;
   },
 
   /**
@@ -360,41 +369,173 @@ export const authAPI = {
 };
 
 /**
+ * Enhanced Profile API functions - Day 18
+ */
+export const profileAPI = {
+  /**
+   * Get complete profile with trust score and analytics
+   */
+  getCompleteProfile: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/profile/complete`, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Get profile analytics
+   */
+  getAnalytics: async (timeRange = '30d') => {
+    const response = await fetch(`${API_BASE_URL}/api/profile/analytics?timeRange=${timeRange}`, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Recalculate trust score
+   */
+  recalculateTrustScore: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/profile/trust-score/recalculate`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Get activity timeline
+   */
+  getActivityTimeline: async (limit = 50) => {
+    const response = await fetch(`${API_BASE_URL}/api/profile/activity-timeline?limit=${limit}`, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Update privacy settings
+   */
+  updatePrivacySettings: async (settings: {
+    showProfile?: boolean;
+    showActivity?: boolean;
+    allowMessages?: boolean;
+  }) => {
+    const response = await fetch(`${API_BASE_URL}/api/profile/privacy`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(settings),
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Get OAuth connections
+   */
+  getOAuthConnections: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/profile/oauth-connections`, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Link OAuth account
+   */
+  linkOAuthAccount: async (provider: string, accessToken: string, profile: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/profile/oauth/${provider}/link`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({ accessToken, profile }),
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Unlink OAuth account
+   */
+  unlinkOAuthAccount: async (provider: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/profile/oauth/${provider}`, {
+      method: 'DELETE',
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Update profile preferences
+   */
+  updatePreferences: async (preferences: any) => {
+    const response = await fetch(`${API_BASE_URL}/api/profile/preferences`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(preferences),
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Request verification
+   */
+  requestVerification: async (type: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/profile/verification/${type}`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Get profile insights
+   */
+  getInsights: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/profile/insights`, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  }
+};
+
+/**
  * Negotiation API functions
  */
 export const negotiationAPI = {
-  /**
-   * Start negotiation for a product
-   */
-  start: async (productId: string, initialOffer?: number) => {
-    const response = await fetch(`${API_BASE_URL}/api/negotiations`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeaders(),
-      },
-      body: JSON.stringify({ productId, initialOffer }),
-    });
-    
-    return handleResponse(response);
-  },
-
-  /**
-   * Send message in negotiation
-   */
-  sendMessage: async (negotiationId: string, message: string, offer?: number) => {
-    const response = await fetch(`${API_BASE_URL}/api/negotiations/${negotiationId}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeaders(),
-      },
-      body: JSON.stringify({ message, offer }),
-    });
-    
-    return handleResponse(response);
-  },
-
   /**
    * Get negotiation by ID
    */
@@ -409,10 +550,245 @@ export const negotiationAPI = {
   },
 
   /**
+   * Start a new negotiation
+   */
+  start: async (data: { productId: string; initialOffer: number; message?: string }) => {
+    const response = await fetch(`${API_BASE_URL}/api/negotiations/start`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Send a message in negotiation
+   */
+  sendMessage: async (negotiationId: string, content: string, amount?: number) => {
+    const endpoint = amount 
+      ? `${API_BASE_URL}/api/negotiations/${negotiationId}/offer`
+      : `${API_BASE_URL}/api/negotiations/${negotiationId}/message`;
+    
+    const body = amount 
+      ? JSON.stringify({ amount, message: content })
+      : JSON.stringify({ content });
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body,
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Send an offer in negotiation
+   */
+  sendOffer: async (negotiationId: string, amount: number, message?: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/negotiations/${negotiationId}/offer`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ amount, message }),
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Accept current offer
+   */
+  accept: async (negotiationId: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/negotiations/${negotiationId}/accept`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Reject current offer
+   */
+  reject: async (negotiationId: string, reason?: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/negotiations/${negotiationId}/reject`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reason }),
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Cancel negotiation
+   */
+  cancel: async (negotiationId: string, reason?: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/negotiations/${negotiationId}/cancel`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reason }),
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
    * Get user's negotiations
    */
-  getUserNegotiations: async () => {
-    const response = await fetch(`${API_BASE_URL}/api/negotiations/user`, {
+  getUserNegotiations: async (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    role?: 'buyer' | 'seller';
+  }) => {
+    const queryParams = new URLSearchParams();
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    
+    const url = `${API_BASE_URL}/api/negotiations${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await fetch(url, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Get negotiations for a product
+   */
+  getByProduct: async (productId: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/negotiations/product/${productId}`, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Get active negotiations
+   */
+  getActive: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/negotiations/active`, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Get completed negotiations
+   */
+  getCompleted: async (params?: { page?: number; limit?: number }) => {
+    const queryParams = new URLSearchParams();
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    
+    const url = `${API_BASE_URL}/api/negotiations/completed${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await fetch(url, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Get negotiation analytics
+   */
+  getAnalytics: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/negotiations/analytics`, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Get negotiation history
+   */
+  getHistory: async (negotiationId: string, params?: { page?: number; limit?: number }) => {
+    const queryParams = new URLSearchParams();
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+    
+    const url = `${API_BASE_URL}/api/negotiations/${negotiationId}/history${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    const response = await fetch(url, {
+      headers: {
+        ...getAuthHeaders(),
+      },
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Send typing indicator
+   */
+  sendTyping: async (negotiationId: string, isTyping: boolean) => {
+    const response = await fetch(`${API_BASE_URL}/api/negotiations/${negotiationId}/typing`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ isTyping }),
+    });
+    
+    return handleResponse(response);
+  },
+
+  /**
+   * Mark messages as read
+   */
+  markAsRead: async (negotiationId: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/negotiations/${negotiationId}/read`, {
+      method: 'POST',
       headers: {
         ...getAuthHeaders(),
       },
@@ -422,8 +798,11 @@ export const negotiationAPI = {
   }
 };
 
-export default {
+const api = {
   productAPI,
   authAPI,
+  profileAPI,
   negotiationAPI
 };
+
+export default api;

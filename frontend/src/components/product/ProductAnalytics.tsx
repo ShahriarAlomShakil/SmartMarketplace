@@ -154,7 +154,7 @@ export const ProductAnalytics: React.FC<ProductAnalyticsProps> = ({
             <div className="bg-white/5 rounded-xl p-4 border border-white/10">
               <div className="flex items-center justify-between mb-2">
                 <EyeIcon className="w-5 h-5 text-blue-400" />
-                <TrendingUpIcon className="w-4 h-4 text-green-400" />
+                <ArrowTrendingUpIcon className="w-4 h-4 text-green-400" />
               </div>
               <div className="text-2xl font-bold text-white">{formatNumber(analytics.views)}</div>
               <div className="text-white/60 text-sm">Total Views</div>
@@ -163,7 +163,7 @@ export const ProductAnalytics: React.FC<ProductAnalyticsProps> = ({
             <div className="bg-white/5 rounded-xl p-4 border border-white/10">
               <div className="flex items-center justify-between mb-2">
                 <HeartIcon className="w-5 h-5 text-red-400" />
-                <TrendingUpIcon className="w-4 h-4 text-green-400" />
+                <ArrowTrendingUpIcon className="w-4 h-4 text-green-400" />
               </div>
               <div className="text-2xl font-bold text-white">{formatNumber(analytics.favorites)}</div>
               <div className="text-white/60 text-sm">Favorites</div>
@@ -185,9 +185,9 @@ export const ProductAnalytics: React.FC<ProductAnalyticsProps> = ({
                 <ChartBarIcon className="w-5 h-5 text-green-400" />
                 <span className="text-white/60 text-xs">
                   {analytics.conversionRate > 5 ? (
-                    <TrendingUpIcon className="w-4 h-4 text-green-400" />
+                    <ArrowTrendingUpIcon className="w-4 h-4 text-green-400" />
                   ) : (
-                    <TrendingDownIcon className="w-4 h-4 text-red-400" />
+                    <ArrowTrendingDownIcon className="w-4 h-4 text-red-400" />
                   )}
                 </span>
               </div>

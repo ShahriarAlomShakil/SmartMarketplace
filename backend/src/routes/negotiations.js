@@ -32,7 +32,7 @@ router.get('/', [
 // @route   GET /api/negotiations/:id
 // @desc    Get negotiation by ID
 // @access  Private (Participants only)
-router.get('/:id', auth, negotiationController.getNegotiationById);
+router.get('/:id', auth, negotiationController.getNegotiation);
 
 // @route   POST /api/negotiations/start
 // @desc    Start a new negotiation

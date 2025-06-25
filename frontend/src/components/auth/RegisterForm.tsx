@@ -48,6 +48,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPasswordStrength, setShowPasswordStrength] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   // Enhanced validation schema with confirm password
   const validationSchema = {
@@ -105,11 +106,17 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
 
     const success = await register(formData);
     if (success) {
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        router.push(redirectTo);
-      }
+      // Show success state briefly before redirecting
+      setRegistrationSuccess(true);
+      
+      // Redirect after a brief delay to show success message
+      setTimeout(() => {
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          router.push(redirectTo);
+        }
+      }, 1500);
     }
   };
 
@@ -132,17 +139,34 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
           <p className="text-white/70">Join us and start your journey</p>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <ErrorAlert
-            message={error}
-            onClose={clearError}
-            className="mb-6"
-          />
+        {/* Success State */}
+        {registrationSuccess && (
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-400 to-green-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-green-400 mb-2">Account Created Successfully!</h3>
+            <p className="text-white/70 mb-4">Redirecting you to your dashboard...</p>
+            <div className="w-8 h-8 mx-auto border-2 border-green-400 border-t-transparent rounded-full animate-spin"></div>
+          </div>
         )}
 
-        {/* Registration Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Error Alert and Form - Hidden during success */}
+        {!registrationSuccess && (
+          <>
+            {/* Error Alert */}
+            {error && (
+              <ErrorAlert
+                message={error}
+                onClose={clearError}
+                className="mb-6"
+              />
+            )}
+
+            {/* Registration Form */}
+            <form onSubmit={handleSubmit} className="space-y-6">
           {/* Name Fields */}
           <div className="grid grid-cols-2 gap-4">
             <ModernInput
@@ -271,8 +295,14 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
             size="lg"
             fullWidth
             loading={loading}
+            disabled={registrationSuccess}
           >
-            {loading ? 'Creating Account...' : 'Create Account'}
+            {registrationSuccess 
+              ? 'Redirecting to Dashboard...' 
+              : loading 
+              ? 'Creating Account...' 
+              : 'Create Account'
+            }
           </ModernButton>
         </form>
 
@@ -294,6 +324,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
             </Link>
           </p>
         </div>
+        </>
+        )}
       </BlurCard>
     </div>
   );

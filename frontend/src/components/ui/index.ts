@@ -17,6 +17,16 @@ export {
   NetworkError 
 } from './ErrorHandling';
 
+// Chat Components
+export { 
+  ChatBox, 
+  ChatHeader, 
+  MessageBubble, 
+  MessageInput, 
+  TypingIndicator, 
+  SystemMessage 
+} from '../chat';
+
 // Layout Components
 export { Navigation } from '../Navigation';
 export { Layout } from '../Layout';

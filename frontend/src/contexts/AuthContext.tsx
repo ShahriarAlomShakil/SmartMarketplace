@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/router';
 import { AuthUser, LoginCredentials, RegisterData } from '../../../shared/types/User';
+import { authAPI } from '../utils/api';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -38,18 +39,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
-      const response = await fetch('/api/auth/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser({ ...userData.data, token });
-      } else {
-        localStorage.removeItem('token');
-      }
+      const userData = await authAPI.getProfile();
+      setUser({ ...userData.user, token });
     } catch (error) {
       console.error('Auth check failed:', error);
       localStorage.removeItem('token');
@@ -60,30 +51,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (credentials: LoginCredentials): Promise<boolean> => {
     try {
+      console.log('🔐 AuthContext: Login started');
+      console.log('📝 AuthContext: Credentials:', { email: credentials.email, password: '***' });
+      
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        const { token, user: userData } = data.data;
-        localStorage.setItem('token', token);
-        setUser({ ...userData, token });
-        return true;
-      } else {
-        setError(data.message || 'Login failed');
-        return false;
-      }
-    } catch (error) {
-      setError('Network error. Please try again.');
+      console.log('📡 AuthContext: Calling authAPI.login...');
+      const data = await authAPI.login(credentials.email, credentials.password);
+      console.log('✅ AuthContext: API response received:', { status: data.status, user: data.user?.email });
+      
+      // The API returns data directly, not nested in data.data
+      const { accessToken, refreshToken, user: userData } = data;
+      localStorage.setItem('token', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      setUser({ ...userData, token: accessToken });
+      
+      console.log('✅ AuthContext: Login successful');
+      return true;
+    } catch (error: any) {
+      console.error('❌ AuthContext: Login error:', error);
+      setError(error.message || 'Login failed');
       return false;
     } finally {
       setLoading(false);
@@ -95,27 +83,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
+      const data = await authAPI.register({
+        username: userData.username,
+        email: userData.email,
+        password: userData.password,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        const { token, user: newUser } = data.data;
-        localStorage.setItem('token', token);
-        setUser({ ...newUser, token });
-        return true;
-      } else {
-        setError(data.message || 'Registration failed');
-        return false;
-      }
-    } catch (error) {
-      setError('Network error. Please try again.');
+      // The API returns data directly, not nested in data.data
+      const { accessToken, refreshToken, user: newUser } = data;
+      localStorage.setItem('token', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      setUser({ ...newUser, token: accessToken });
+      return true;
+    } catch (error: any) {
+      setError(error.message || 'Registration failed');
       return false;
     } finally {
       setLoading(false);
@@ -126,17 +109,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
+        await authAPI.logout();
       }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       setUser(null);
       router.push('/');
     }

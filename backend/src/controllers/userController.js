@@ -667,6 +667,50 @@ const deactivateUser = async (req, res) => {
   }
 };
 
+// @desc    Upload user avatar
+// @route   POST /api/users/avatar
+// @access  Private
+const uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'No file uploaded'
+      });
+    }
+
+    // Update user avatar URL
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { avatar: avatarUrl },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      status: 'success',
+      message: 'Avatar uploaded successfully',
+      data: {
+        avatar: user.avatar
+      }
+    });
+
+  } catch (error) {
+    console.error('Upload avatar error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Server error while uploading avatar'
+    });
+  }
+};
+
 module.exports = {
   getCurrentUserProfile,
   getUserProfile,
@@ -676,25 +720,9 @@ module.exports = {
   getUserStats,
   addUserReview,
   getUserReviews,
-  searchUsers
-};
-
-// @desc    Upload user avatar
-// @route   POST /api/users/:id/avatar
-// @access  Private (Self only)
-const uploadAvatar = async (req, res) => {
-  try {
-    res.status(501).json({
-      status: 'error',
-      message: 'Avatar upload functionality not yet implemented'
-    });
-  } catch (error) {
-    console.error('Upload avatar error:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Server error while uploading avatar'
-    });
-  }
+  searchUsers,
+  deactivateUser,
+  uploadAvatar
 };
 
 // @desc    Update user preferences
