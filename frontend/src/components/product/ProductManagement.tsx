@@ -104,7 +104,7 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({
         params.status = status;
       }
 
-      const response = await productAPI.getBySeller(user._id, params);
+      const response = await productAPI.getByUser(user._id, params);
       setProducts(response.data.products);
       setTotalPages(response.data.pagination.pages);
       setCurrentPage(response.data.pagination.current);

@@ -97,7 +97,10 @@ const register = async (req, res) => {
     }
 
     // Create user
-    const user = new User(sanitizedData);
+    const user = new User({
+      ...sanitizedData,
+      role: 'user' // All users are now unified
+    });
     await user.save();
 
     // Generate email verification token if needed
@@ -177,8 +180,13 @@ const login = async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password');
     
     if (!user) {
-      // Record failed attempt
-      await rateLimitingService.recordFailedAttempt(req.ip, 'login');
+      // Record failed attempt (this may throw rate limit errors, but we should still return the auth error)
+      try {
+        await rateLimitingService.recordFailedAttempt(req.ip, 'login');
+      } catch (rateLimitError) {
+        // Rate limit exceeded, but we still want to return the auth error
+        console.log('Rate limit exceeded for non-existent user:', rateLimitError.message || rateLimitError);
+      }
       return res.status(401).json({
         status: 'error',
         message: 'Invalid email or password'
@@ -213,8 +221,15 @@ const login = async (req, res) => {
     if (!isPasswordValid) {
       // Increment login attempts
       await user.incrementLoginAttempts();
-      await rateLimitingService.recordFailedAttempt(req.ip, 'login');
-      await rateLimitingService.recordFailedAttempt(`user_login_${email}`, 'userLogin');
+      
+      // Record failed attempts (these may throw rate limit errors, but we should still return the auth error)
+      try {
+        await rateLimitingService.recordFailedAttempt(req.ip, 'login');
+        await rateLimitingService.recordFailedAttempt(`user_login_${email}`, 'userLogin');
+      } catch (rateLimitError) {
+        // Rate limit exceeded, but we still want to return the auth error
+        console.log('Rate limit exceeded during failed login attempt:', rateLimitError.message || rateLimitError);
+      }
       
       return res.status(401).json({
         status: 'error',
@@ -237,7 +252,11 @@ const login = async (req, res) => {
                          await twoFactorAuthService.verifyBackupCode(user._id, twoFactorToken);
 
       if (!is2FAValid) {
-        await rateLimitingService.recordFailedAttempt(`2fa_${user._id}`, '2fa');
+        try {
+          await rateLimitingService.recordFailedAttempt(`2fa_${user._id}`, '2fa');
+        } catch (rateLimitError) {
+          console.log('Rate limit exceeded for 2FA:', rateLimitError.message || rateLimitError);
+        }
         return res.status(401).json({
           status: 'error',
           message: 'Invalid 2FA token'

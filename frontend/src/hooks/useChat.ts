@@ -80,7 +80,7 @@ export const useChat = ({
       const newMessage: NegotiationMessage = {
         _id: `temp-${Date.now()}`,
         type,
-        sender: currentUserRole === 'buyer' ? MessageSender.BUYER : MessageSender.SELLER,
+        sender: currentUserRole === 'buyer' ? MessageSender.USER : MessageSender.OWNER,
         content,
         timestamp: new Date(),
         isRead: false,
@@ -117,7 +117,7 @@ export const useChat = ({
       const newMessage: NegotiationMessage = {
         _id: `temp-offer-${Date.now()}`,
         type: MessageType.OFFER,
-        sender: currentUserRole === 'buyer' ? MessageSender.BUYER : MessageSender.SELLER,
+        sender: currentUserRole === 'buyer' ? MessageSender.USER : MessageSender.OWNER,
         content: offerMessage,
         offer: {
           amount,
@@ -157,7 +157,7 @@ export const useChat = ({
       ...prev,
       messages: prev.messages.map(msg => ({
         ...msg,
-        isRead: msg.sender !== (currentUserRole === 'buyer' ? MessageSender.BUYER : MessageSender.SELLER) ? true : msg.isRead
+        isRead: msg.sender !== (currentUserRole === 'buyer' ? MessageSender.USER : MessageSender.OWNER) ? true : msg.isRead
       }))
     }));
   }, [currentUserRole]);
@@ -177,7 +177,7 @@ export const useChat = ({
   useEffect(() => {
     if (onMessageReceived) {
       state.messages.forEach(message => {
-        if (message.sender !== currentUserRole) {
+        if (message.sender !== MessageSender.USER && message.sender !== MessageSender.OWNER) {
           onMessageReceived(message);
         }
       });

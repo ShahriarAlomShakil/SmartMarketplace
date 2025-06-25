@@ -32,7 +32,7 @@ import {
 
 interface AnalyticsDashboardProps {
   className?: string;
-  userRole?: 'user' | 'seller' | 'admin';
+  userRole?: 'user' | 'admin';
 }
 
 interface MetricCardProps {
@@ -342,7 +342,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             <MetricCard
               title="Success Rate"
               value={`${(negotiationAnalytics.metrics.successRate * 100).toFixed(1)}%`}
-              icon={TrendingUpIcon}
+              icon={ArrowTrendingUpIcon}
               color="green"
             />
             
@@ -419,7 +419,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
             <MetricCard
               title="Engagement Rate"
               value={`${(productAnalytics.metrics.clickThroughRate * 100).toFixed(1)}%`}
-              icon={TrendingUpIcon}
+              icon={ArrowTrendingUpIcon}
               color="green"
             />
             

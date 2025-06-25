@@ -1,21 +1,33 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BlurCard } from '../ui/BlurCard';
-import { MessageBubble, MessageInput, ChatHeader, TypingIndicator, SystemMessage } from './';
+import { ModernLoading } from '../ui/ModernLoading';
+import { ChatHeader } from './ChatHeader';
+import { MessageBubble } from './MessageBubble';
+import { MessageInput } from './MessageInput';
+import { TypingIndicator } from './TypingIndicator';
+import { SystemMessage } from './SystemMessage';
+import { useChat } from '../../hooks/useChat';
+import { useAuth } from '../../contexts/AuthContext';
 import { NegotiationMessage, MessageType, MessageSender } from '../../../../shared/types/Negotiation';
 import { cn } from '../../utils/cn';
+import {
+  ExclamationTriangleIcon,
+  WifiIcon,
+  NoSymbolIcon
+} from '@heroicons/react/24/outline';
 
 /**
- * ChatBox Component - Modern chat interface with blurry backgrounds
+ * ChatBox Component - Main chat interface with modern blur design
  * 
  * Features:
- * - Clean modern container with subtle blur
- * - Message bubbles with different styles for participants
- * - Real-time message updates
- * - Typing indicators
+ * - Real-time messaging with typing indicators
  * - Auto-scroll to latest messages
- * - Message actions and status indicators
+ * - Message grouping by sender and time
+ * - Connection status indicators
+ * - Loading states with modern animations
  * - Responsive design for mobile
+ * - Modern scrollbar styling
  */
 
 interface ChatBoxProps {
@@ -24,19 +36,23 @@ interface ChatBoxProps {
   productTitle: string;
   productImage?: string;
   productPrice: number;
-  sellerName: string;
+  sellerName?: string;
   sellerAvatar?: string;
-  buyerName: string;
+  buyerName?: string;
   buyerAvatar?: string;
-  messages: NegotiationMessage[];
-  currentUserRole: 'buyer' | 'seller';
+  participantName?: string;
+  participantAvatar?: string;
+  ownerName?: string;
+  ownerAvatar?: string;
+  messages?: NegotiationMessage[];
+  currentUserRole: 'buyer' | 'seller' | 'participant' | 'owner';
   isTyping?: boolean;
   typingUser?: string;
   onSendMessage: (message: string, type?: MessageType) => void;
   onSendOffer: (amount: number, message?: string) => void;
-  className?: string;
   isLoading?: boolean;
   connectionStatus?: 'connected' | 'connecting' | 'disconnected';
+  className?: string;
 }
 
 export const ChatBox: React.FC<ChatBoxProps> = ({
@@ -49,200 +65,266 @@ export const ChatBox: React.FC<ChatBoxProps> = ({
   sellerAvatar,
   buyerName,
   buyerAvatar,
-  messages,
+  participantName,
+  participantAvatar,
+  ownerName,
+  ownerAvatar,
+  messages: externalMessages,
   currentUserRole,
-  isTyping = false,
-  typingUser,
+  isTyping: externalIsTyping,
+  typingUser: externalTypingUser,
   onSendMessage,
   onSendOffer,
-  className,
-  isLoading = false,
-  connectionStatus = 'connected'
+  isLoading: externalLoading,
+  connectionStatus: externalConnectionStatus,
+  className
 }) => {
+  const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+
+  // Use chat hook if external messages not provided
+  const {
+    messages: hookMessages,
+    isLoading: hookLoading,
+    isTyping: hookIsTyping,
+    typingUser: hookTypingUser,
+    connectionStatus: hookConnectionStatus,
+    sendMessage,
+    sendOffer,
+    error
+  } = useChat({
+    negotiationId,
+    currentUserRole: currentUserRole as 'buyer' | 'seller',
+    onMessageReceived: (message) => {
+      console.log('New message received:', message);
+    },
+    onTypingChanged: (isTyping, user) => {
+      console.log('Typing status changed:', isTyping, user);
+    }
+  });
+
+  // Use external props or hook values
+  const messages = externalMessages || hookMessages;
+  const isLoading = externalLoading !== undefined ? externalLoading : hookLoading;
+  const isTyping = externalIsTyping !== undefined ? externalIsTyping : hookIsTyping;
+  const typingUser = externalTypingUser || hookTypingUser;
+  const connectionStatus = externalConnectionStatus || hookConnectionStatus;
+
+  // Determine participant names (backward compatibility)
+  const effectiveParticipantName = participantName || buyerName || 'Participant';
+  const effectiveParticipantAvatar = participantAvatar || buyerAvatar;
+  const effectiveOwnerName = ownerName || sellerName || 'Owner';
+  const effectiveOwnerAvatar = ownerAvatar || sellerAvatar;
 
   // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (autoScroll && messagesEndRef.current) {
+  const scrollToBottom = useCallback((smooth = true) => {
+    if (messagesEndRef.current && shouldAutoScroll) {
       messagesEndRef.current.scrollIntoView({ 
-        behavior: 'smooth',
+        behavior: smooth ? 'smooth' : 'auto',
         block: 'end'
       });
     }
-  }, [messages, autoScroll]);
+  }, [shouldAutoScroll]);
 
-  // Handle scroll to detect if user has scrolled up
-  const handleScroll = () => {
-    if (chatContainerRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-      setAutoScroll(isNearBottom);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  // Handle scroll to detect manual scrolling
+  const handleScroll = useCallback(() => {
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShouldAutoScroll(isAtBottom);
     }
-  };
+  }, []);
 
-  // Group consecutive messages from the same sender
+  // Handle message sending
+  const handleSendMessage = useCallback((content: string, type?: MessageType) => {
+    if (externalMessages) {
+      // Use external handler
+      onSendMessage(content, type);
+    } else {
+      // Use hook
+      sendMessage(content, type);
+    }
+  }, [externalMessages, onSendMessage, sendMessage]);
+
+  // Handle offer sending
+  const handleSendOffer = useCallback((amount: number, message?: string) => {
+    if (externalMessages) {
+      // Use external handler
+      onSendOffer(amount, message);
+    } else {
+      // Use hook
+      sendOffer(amount, message);
+    }
+  }, [externalMessages, onSendOffer, sendOffer]);
+
+  // Group messages by time and sender
   const groupedMessages = messages.reduce((groups: NegotiationMessage[][], message, index) => {
     const prevMessage = messages[index - 1];
-    const shouldGroup = 
-      prevMessage && 
+    const timeDiff = prevMessage ? 
+      new Date(message.timestamp).getTime() - new Date(prevMessage.timestamp).getTime() : 
+      0;
+    
+    const shouldGroup = prevMessage && 
       prevMessage.sender === message.sender && 
-      new Date(message.timestamp).getTime() - new Date(prevMessage.timestamp).getTime() < 5 * 60 * 1000; // 5 minutes
-
+      timeDiff < 5 * 60 * 1000; // 5 minutes
+    
     if (shouldGroup && groups.length > 0) {
       groups[groups.length - 1].push(message);
     } else {
       groups.push([message]);
     }
+    
     return groups;
   }, []);
 
   return (
-    <BlurCard 
-      variant="elevated" 
-      className={cn(
-        'flex flex-col h-full max-h-[700px] lg:max-h-[800px]',
-        'border border-white/20 shadow-modern-lg',
-        className
-      )}
-    >
+    <BlurCard variant="elevated" className={cn('flex flex-col h-full', className)}>
       {/* Chat Header */}
       <ChatHeader
         productTitle={productTitle}
         productImage={productImage}
         productPrice={productPrice}
-        sellerName={sellerName}
-        sellerAvatar={sellerAvatar}
-        buyerName={buyerName}
-        buyerAvatar={buyerAvatar}
+        sellerName={effectiveOwnerName}
+        sellerAvatar={effectiveOwnerAvatar}
+        buyerName={effectiveParticipantName}
+        buyerAvatar={effectiveParticipantAvatar}
         connectionStatus={connectionStatus}
       />
 
+      {/* Connection Error Alert */}
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-4 mt-4 p-3 rounded-lg bg-red-500/20 border border-red-400/30 flex items-center space-x-3"
+        >
+          <ExclamationTriangleIcon className="w-5 h-5 text-red-400 flex-shrink-0" />
+          <p className="text-red-100 text-sm">{error}</p>
+        </motion.div>
+      )}
+
+      {/* Connection Status */}
+      {connectionStatus !== 'connected' && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={cn(
+            'mx-4 mt-4 p-3 rounded-lg border flex items-center justify-center space-x-2',
+            connectionStatus === 'connecting' && 'bg-yellow-500/20 border-yellow-400/30',
+            connectionStatus === 'disconnected' && 'bg-red-500/20 border-red-400/30'
+          )}
+        >
+          {connectionStatus === 'connecting' ? (
+            <WifiIcon className="w-5 h-5 text-yellow-400 animate-pulse" />
+          ) : (
+            <NoSymbolIcon className="w-5 h-5 text-red-400" />
+          )}
+          <span className={cn(
+            'text-sm font-medium',
+            connectionStatus === 'connecting' && 'text-yellow-100',
+            connectionStatus === 'disconnected' && 'text-red-100'
+          )}>
+            {connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+          </span>
+        </motion.div>
+      )}
+
       {/* Messages Container */}
       <div 
-        ref={chatContainerRef}
+        ref={messagesContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 scrollbar-modern"
+        className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
       >
-        <AnimatePresence initial={false}>
-          {groupedMessages.map((messageGroup, groupIndex) => (
-            <motion.div
-              key={`group-${groupIndex}-${messageGroup[0]._id}`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-2"
-            >
-              {messageGroup.map((message, messageIndex) => (
-                <div key={message._id} className="w-full">
-                  {message.type === 'system' ? (
-                    <SystemMessage message={message} />
-                  ) : (
+        {isLoading && messages.length === 0 ? (
+          <div className="flex items-center justify-center h-32">
+            <ModernLoading size="sm" text="Loading messages..." />
+          </div>
+        ) : (
+          <AnimatePresence>
+            {groupedMessages.map((group, groupIndex) => (
+              <motion.div
+                key={`group-${groupIndex}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ delay: groupIndex * 0.05 }}
+                className="space-y-2"
+              >
+                {group.map((message, messageIndex) => {
+                  const isOwn = (message.sender === MessageSender.USER && user?._id === message.senderId) ||
+                               (message.sender === MessageSender.OWNER && currentUserRole === 'owner') ||
+                               (message.sender === MessageSender.USER && currentUserRole === 'participant');
+
+                  const senderName = isOwn ? 'You' : 
+                                   (message.sender === MessageSender.AI ? 'AI Assistant' : 
+                                    effectiveParticipantName);
+
+                  const senderAvatar = isOwn ? user?.avatar : 
+                                     (message.sender === MessageSender.AI ? undefined : 
+                                      effectiveParticipantAvatar);
+
+                  if (message.type === MessageType.SYSTEM) {
+                    return (
+                      <SystemMessage
+                        key={message._id}
+                        message={message}
+                      />
+                    );
+                  }
+
+                  return (
                     <MessageBubble
+                      key={message._id}
                       message={message}
-                      isOwn={message.sender === currentUserRole}
-                      showAvatar={messageIndex === messageGroup.length - 1}
-                      showTimestamp={messageIndex === messageGroup.length - 1}
-                      senderName={
-                        message.sender === 'buyer' ? buyerName :
-                        message.sender === 'seller' ? sellerName :
-                        'AI Assistant'
-                      }
-                      senderAvatar={
-                        message.sender === 'buyer' ? buyerAvatar :
-                        message.sender === 'seller' ? sellerAvatar :
-                        undefined
-                      }
-                      onAction={(action: 'copy' | 'report', messageId: string) => {
-                        console.log('Message action:', action, messageId);
-                        // Handle message actions (copy, report, etc.)
+                      isOwn={isOwn}
+                      showAvatar={messageIndex === group.length - 1}
+                      showTimestamp={messageIndex === group.length - 1}
+                      senderName={senderName}
+                      senderAvatar={senderAvatar}
+                      onAction={(action, messageId) => {
+                        console.log(`Message action: ${action} on ${messageId}`);
                       }}
                     />
-                  )}
-                </div>
-              ))}
-            </motion.div>
-          ))}
-        </AnimatePresence>
+                  );
+                })}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        )}
 
         {/* Typing Indicator */}
         {isTyping && typingUser && (
           <TypingIndicator
             userName={typingUser}
-            isVisible={isTyping}
+            isVisible={true}
           />
         )}
 
-        {/* Loading Indicator */}
-        {isLoading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex justify-center py-4"
-          >
-            <div className="flex space-x-1">
-              {[0, 1, 2].map((dot) => (
-                <motion.div
-                  key={dot}
-                  className="w-2 h-2 bg-white/60 rounded-full"
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    opacity: [0.6, 1, 0.6]
-                  }}
-                  transition={{
-                    duration: 1,
-                    repeat: Infinity,
-                    delay: dot * 0.2
-                  }}
-                />
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Scroll anchor */}
+        {/* Auto-scroll anchor */}
         <div ref={messagesEndRef} />
       </div>
 
       {/* Message Input */}
       <div className="border-t border-white/15 p-4">
         <MessageInput
-          onSendMessage={onSendMessage}
-          onSendOffer={onSendOffer}
-          placeholder="Type your message..."
-          disabled={isLoading || connectionStatus === 'disconnected'}
-          showOfferButton={currentUserRole === 'buyer'}
+          onSendMessage={handleSendMessage}
+          onSendOffer={handleSendOffer}
+          disabled={connectionStatus === 'disconnected' || isLoading}
+          showOfferButton={currentUserRole === 'buyer' || currentUserRole === 'participant'}
           maxPrice={productPrice}
+          placeholder={
+            connectionStatus === 'disconnected' 
+              ? 'Reconnecting...' 
+              : 'Type your message...'
+          }
         />
       </div>
-
-      {/* Connection Status Indicator */}
-      {connectionStatus !== 'connected' && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={cn(
-            'absolute top-16 left-4 right-4 p-3 rounded-lg text-sm',
-            'backdrop-blur-xl border',
-            connectionStatus === 'connecting' && 'bg-yellow-500/20 border-yellow-400/30 text-yellow-100',
-            connectionStatus === 'disconnected' && 'bg-red-500/20 border-red-400/30 text-red-100'
-          )}
-        >
-          <div className="flex items-center space-x-2">
-            <div className={cn(
-              'w-2 h-2 rounded-full',
-              connectionStatus === 'connecting' && 'bg-yellow-400 animate-pulse',
-              connectionStatus === 'disconnected' && 'bg-red-400'
-            )} />
-            <span>
-              {connectionStatus === 'connecting' && 'Reconnecting...'}
-              {connectionStatus === 'disconnected' && 'Connection lost. Trying to reconnect...'}
-            </span>
-          </div>
-        </motion.div>
-      )}
     </BlurCard>
   );
 };

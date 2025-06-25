@@ -36,11 +36,11 @@ interface ChatManagerProps {
   productTitle: string;
   productImage?: string;
   productPrice: number;
-  sellerName: string;
-  sellerAvatar?: string;
-  buyerName: string;
-  buyerAvatar?: string;
-  currentUserRole: 'buyer' | 'seller';
+  participantName: string;
+  participantAvatar?: string;
+  ownerName: string;
+  ownerAvatar?: string;
+  currentUserRole: 'participant' | 'owner';
   onSendMessage?: (message: string, type?: MessageType) => void;
   onSendOffer?: (amount: number, message?: string) => void;
   className?: string;
@@ -53,10 +53,10 @@ export const ChatManager: React.FC<ChatManagerProps> = ({
   productTitle,
   productImage,
   productPrice,
-  sellerName,
-  sellerAvatar,
-  buyerName,
-  buyerAvatar,
+  participantName,
+  participantAvatar,
+  ownerName,
+  ownerAvatar,
   currentUserRole,
   onSendMessage,
   onSendOffer,
@@ -268,10 +268,10 @@ export const ChatManager: React.FC<ChatManagerProps> = ({
         productTitle={productTitle}
         productImage={productImage}
         productPrice={productPrice}
-        sellerName={sellerName}
-        sellerAvatar={sellerAvatar}
-        buyerName={buyerName}
-        buyerAvatar={buyerAvatar}
+        participantName={participantName}
+        participantAvatar={participantAvatar}
+        ownerName={ownerName}
+        ownerAvatar={ownerAvatar}
         messages={messages}
         currentUserRole={currentUserRole}
         isTyping={currentTypingUsers.length > 0}

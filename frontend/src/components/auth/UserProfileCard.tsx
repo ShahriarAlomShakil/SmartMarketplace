@@ -46,10 +46,8 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
     switch (role.toLowerCase()) {
       case 'admin':
         return 'bg-red-500/20 text-red-300 border-red-400/30';
-      case 'seller':
+      case 'user':
         return 'bg-blue-500/20 text-blue-300 border-blue-400/30';
-      case 'buyer':
-        return 'bg-green-500/20 text-green-300 border-green-400/30';
       default:
         return 'bg-white/20 text-white/80 border-white/30';
     }

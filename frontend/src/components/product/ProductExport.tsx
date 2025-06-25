@@ -83,7 +83,7 @@ export const ProductExport: React.FC<ProductExportProps> = ({ onClose }) => {
       setIsExporting(true);
       
       // Fetch products based on criteria
-      const products = await productAPI.getBySeller(user?._id || '', {
+      const products = await productAPI.getByUser(user?._id || '', {
         page: 1,
         limit: 1000, // Get all products
         status: 'all'

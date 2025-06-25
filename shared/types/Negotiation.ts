@@ -5,12 +5,12 @@ import { Product } from './Product';
 export interface Negotiation {
   _id: string;
   product: Product;
-  buyer: {
+  participant: {
     _id: string;
     username: string;
     avatar?: string;
   };
-  seller: {
+  owner: {
     _id: string;
     username: string;
     avatar?: string;
@@ -20,7 +20,7 @@ export interface Negotiation {
   currentOffer: {
     amount: number;
     currency: string;
-    offeredBy: 'buyer' | 'seller' | 'ai';
+    offeredBy: 'user' | 'owner' | 'ai';
     offeredAt: Date;
   };
   finalPrice?: number;
@@ -52,8 +52,8 @@ export enum MessageType {
 }
 
 export enum MessageSender {
-  BUYER = 'buyer',
-  SELLER = 'seller',
+  USER = 'user',
+  OWNER = 'owner',
   AI = 'ai',
   SYSTEM = 'system'
 }

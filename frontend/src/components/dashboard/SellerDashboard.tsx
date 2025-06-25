@@ -58,7 +58,7 @@ export const SellerDashboard: React.FC<SellerDashboardProps> = ({
       setLoading(true);
       
       // Fetch seller's products
-      const productsResponse = await productAPI.getBySeller(user?._id || '', {
+      const productsResponse = await productAPI.getByUser(user?._id || '', {
         page: 1,
         limit: 100,
         status: 'all'

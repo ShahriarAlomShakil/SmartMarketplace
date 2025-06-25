@@ -5,6 +5,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import dashboard theme styles */
+@import './dashboard-theme.css';
+
 /* Modern Design Foundation */
 @layer base {
   * {

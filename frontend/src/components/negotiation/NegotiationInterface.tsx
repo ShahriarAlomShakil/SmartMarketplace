@@ -137,8 +137,10 @@ export const NegotiationInterface: React.FC<NegotiationInterfaceProps> = ({
     .map((msg, index) => ({
       round: index + 1,
       amount: msg.offer!.amount,
-      offeredBy: msg.sender === MessageSender.BUYER ? 'buyer' as const :
-                 msg.sender === MessageSender.SELLER ? 'seller' as const : 'ai' as const,
+      offeredBy: msg.sender === MessageSender.USER ? 
+                 (currentUserRole === 'buyer' ? 'buyer' as const : 'seller' as const) :
+                 msg.sender === MessageSender.OWNER ? 
+                 (currentUserRole === 'buyer' ? 'seller' as const : 'buyer' as const) : 'ai' as const,
       timestamp: new Date(msg.timestamp)
     }));
 
@@ -257,14 +259,14 @@ export const NegotiationInterface: React.FC<NegotiationInterfaceProps> = ({
                     }
                   },
                   buyer: {
-                    _id: negotiation.buyer._id,
-                    username: negotiation.buyer.username,
-                    avatar: negotiation.buyer.avatar
+                    _id: negotiation.participant._id,
+                    username: negotiation.participant.username,
+                    avatar: negotiation.participant.avatar
                   },
                   seller: {
-                    _id: negotiation.seller._id,
-                    username: negotiation.seller.username,
-                    avatar: negotiation.seller.avatar
+                    _id: negotiation.owner._id,
+                    username: negotiation.owner.username,
+                    avatar: negotiation.owner.avatar
                   },
                   rounds: negotiation.rounds,
                   maxRounds: negotiation.maxRounds,
@@ -365,14 +367,14 @@ export const NegotiationInterface: React.FC<NegotiationInterfaceProps> = ({
               }
             },
             buyer: {
-              _id: negotiation.buyer._id,
-              username: negotiation.buyer.username,
-              avatar: negotiation.buyer.avatar
+              _id: negotiation.participant._id,
+              username: negotiation.participant.username,
+              avatar: negotiation.participant.avatar
             },
             seller: {
-              _id: negotiation.seller._id,
-              username: negotiation.seller.username,
-              avatar: negotiation.seller.avatar
+              _id: negotiation.owner._id,
+              username: negotiation.owner.username,
+              avatar: negotiation.owner.avatar
             },
             rounds: negotiation.rounds,
             maxRounds: negotiation.maxRounds,

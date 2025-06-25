@@ -217,9 +217,9 @@ export const productAPI = {
   },
 
   /**
-   * Get products by seller
+   * Get products by user
    */
-  getBySeller: async (sellerId: string, params: {
+  getByUser: async (userId: string, params: {
     page?: number;
     limit?: number;
     status?: string;
@@ -227,12 +227,12 @@ export const productAPI = {
     const queryParams = new URLSearchParams();
     
     Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
+      if (value !== undefined && value !== null && !(key === 'status' && value === 'all')) {
         queryParams.append(key, value.toString());
       }
     });
 
-    const response = await fetch(`${API_BASE_URL}/api/products/seller/${sellerId}?${queryParams}`);
+    const response = await fetch(`${API_BASE_URL}/api/users/${userId}/products?${queryParams}`);
     return handleResponse(response);
   },
 

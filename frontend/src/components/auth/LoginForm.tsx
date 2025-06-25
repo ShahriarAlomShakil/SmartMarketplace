@@ -89,7 +89,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push(redirectTo);
+        // Small delay to ensure auth state is fully updated
+        setTimeout(() => {
+          router.push(redirectTo);
+        }, 100);
       }
     } else {
       console.log('❌ LoginForm: Login failed');

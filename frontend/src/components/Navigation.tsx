@@ -5,6 +5,7 @@ import { NavigationProps, NavItem } from '../types/ui';
 import { cn } from '../utils/design';
 import { ModernButton } from './ui/ModernButton';
 import { BlurCard } from './ui/BlurCard';
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * Navigation - A modern navigation component with blurry background and modern layout
@@ -25,9 +26,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
-  // TODO: Replace with actual auth context
-  const [user, setUser] = useState<{ name: string; avatar?: string } | null>(null);
+  const { user, logout } = useAuth();
 
   const defaultNavItems: NavItem[] = [
     { 
@@ -92,13 +91,13 @@ export const Navigation: React.FC<NavigationProps> = ({
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center">
             <span className="text-white text-sm font-medium">
-              {user.name.charAt(0).toUpperCase()}
+              {user.username.charAt(0).toUpperCase()}
             </span>
           </div>
           <ModernButton
             variant="ghost"
             size="sm"
-            onClick={() => setUser(null)}
+            onClick={() => logout()}
           >
             Sign Out
           </ModernButton>

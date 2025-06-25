@@ -34,7 +34,7 @@ export const API_ENDPOINTS = {
   PRODUCTS: {
     BASE: '/products',
     BY_ID: (productId: string) => `/products/${productId}`,
-    BY_SELLER: (sellerId: string) => `/products/seller/${sellerId}`,
+    BY_USER: (userId: string) => `/users/${userId}/products`,
     CREATE: '/products',
     UPDATE: (productId: string) => `/products/${productId}`,
     DELETE: (productId: string) => `/products/${productId}`,

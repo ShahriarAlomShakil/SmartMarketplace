@@ -99,19 +99,19 @@ export const NegotiationTimeline: React.FC<NegotiationTimelineProps> = ({
           borderColor: 'border-purple-500/30',
           label: 'AI Assistant'
         };
-      case MessageSender.BUYER:
+      case MessageSender.USER:
         return {
           color: 'text-green-400',
           bgColor: 'bg-green-500/20',
           borderColor: 'border-green-500/30',
-          label: 'Buyer'
+          label: 'Participant'
         };
-      case MessageSender.SELLER:
+      case MessageSender.OWNER:
         return {
           color: 'text-orange-400',
           bgColor: 'bg-orange-500/20',
           borderColor: 'border-orange-500/30',
-          label: 'Seller'
+          label: 'Owner'
         };
       default:
         return {
@@ -153,8 +153,8 @@ export const NegotiationTimeline: React.FC<NegotiationTimelineProps> = ({
 
   // Check if current user is the sender
   const isCurrentUserSender = (sender: MessageSender) => {
-    return (currentUserRole === 'buyer' && sender === MessageSender.BUYER) ||
-           (currentUserRole === 'seller' && sender === MessageSender.SELLER);
+    return (currentUserRole === 'buyer' && sender === MessageSender.USER) ||
+           (currentUserRole === 'seller' && sender === MessageSender.OWNER);
   };
 
   return (

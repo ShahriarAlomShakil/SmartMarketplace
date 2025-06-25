@@ -172,7 +172,7 @@ const startNegotiation = async (req, res) => {
       });
     }
 
-    // Check if buyer is not the seller
+    // Check if user is not trying to negotiate on their own product
     if (product.seller._id.toString() === buyerId.toString()) {
       return res.status(400).json({
         status: 'error',

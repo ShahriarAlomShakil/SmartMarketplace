@@ -18,8 +18,7 @@ export interface User {
 }
 
 export enum UserRole {
-  BUYER = 'buyer',
-  SELLER = 'seller',
+  USER = 'user',
   ADMIN = 'admin'
 }
 

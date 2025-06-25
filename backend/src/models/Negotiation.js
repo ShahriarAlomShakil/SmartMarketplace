@@ -73,16 +73,16 @@ const negotiationSchema = new mongoose.Schema({
     required: [true, 'Product is required'],
     index: true
   },
-  buyer: {
+  participant: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Buyer is required'],
+    required: [true, 'Participant is required'],
     index: true
   },
-  seller: {
+  owner: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Seller is required'],
+    required: [true, 'Owner is required'],
     index: true
   },
   status: {

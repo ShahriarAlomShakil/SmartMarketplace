@@ -61,7 +61,7 @@ const NegotiationPage: React.FC = () => {
     error: chatError
   } = useChat({
     negotiationId: negotiationId as string,
-    currentUserRole: negotiation?.buyer._id === user?._id ? 'buyer' : 'seller',
+    currentUserRole: negotiation?.participant._id === user?._id ? 'buyer' : 'seller',
     onMessageReceived: (message: NegotiationMessage) => {
       console.log('New message received:', message);
     },
@@ -225,8 +225,8 @@ const NegotiationPage: React.FC = () => {
   }
 
   const statusConfig = getStatusConfig(negotiation.status);
-  const currentUserRole = negotiation.buyer._id === user?._id ? 'buyer' : 'seller';
-  const otherUser = currentUserRole === 'buyer' ? negotiation.seller : negotiation.buyer;
+  const currentUserRole = negotiation.participant._id === user?._id ? 'buyer' : 'seller';
+  const otherUser = currentUserRole === 'buyer' ? negotiation.owner : negotiation.participant;
 
   return (
     <>
@@ -368,28 +368,28 @@ const NegotiationPage: React.FC = () => {
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 bg-blue-500/30 rounded-full flex items-center justify-center">
                           <span className="text-blue-300 text-sm font-medium">
-                            {negotiation.buyer.username.charAt(0).toUpperCase()}
+                            {negotiation.participant.username.charAt(0).toUpperCase()}
                           </span>
                         </div>
                         <div>
                           <p className="text-white text-sm font-medium">
-                            {negotiation.buyer.username}
+                            {negotiation.participant.username}
                           </p>
-                          <p className="text-white/60 text-xs">Buyer</p>
+                          <p className="text-white/60 text-xs">Participant</p>
                         </div>
                       </div>
                       
                       <div className="flex items-center space-x-3">
                         <div className="w-8 h-8 bg-purple-500/30 rounded-full flex items-center justify-center">
                           <span className="text-purple-300 text-sm font-medium">
-                            {negotiation.seller.username.charAt(0).toUpperCase()}
+                            {negotiation.owner.username.charAt(0).toUpperCase()}
                           </span>
                         </div>
                         <div>
                           <p className="text-white text-sm font-medium">
-                            {negotiation.seller.username}
+                            {negotiation.owner.username}
                           </p>
-                          <p className="text-white/60 text-xs">Seller</p>
+                          <p className="text-white/60 text-xs">Owner</p>
                         </div>
                       </div>
                     </div>
@@ -417,10 +417,10 @@ const NegotiationPage: React.FC = () => {
                     productTitle={negotiation.product.title}
                     productImage={negotiation.product.images?.[0]?.url}
                     productPrice={negotiation.product.pricing.basePrice}
-                    sellerName={negotiation.seller.username}
-                    sellerAvatar={negotiation.seller.avatar}
-                    buyerName={negotiation.buyer.username}
-                    buyerAvatar={negotiation.buyer.avatar}
+                    sellerName={negotiation.owner.username}
+                    sellerAvatar={negotiation.owner.avatar}
+                    buyerName={negotiation.participant.username}
+                    buyerAvatar={negotiation.participant.avatar}
                     messages={messages}
                     currentUserRole={currentUserRole}
                     isTyping={isTyping}
