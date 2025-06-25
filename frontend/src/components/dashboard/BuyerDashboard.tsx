@@ -48,10 +48,6 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('30d');
 
-  useEffect(() => {
-    fetchBuyerStats();
-  }, [timeRange, fetchBuyerStats]);
-
   const fetchBuyerStats = useCallback(async () => {
     try {
       setLoading(true);
@@ -137,7 +133,11 @@ export const BuyerDashboard: React.FC<BuyerDashboardProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchBuyerStats();
+  }, [fetchBuyerStats]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {

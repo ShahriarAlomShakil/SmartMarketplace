@@ -13,8 +13,10 @@ interface UserProfileCardProps {
     isVerified?: boolean;
     role?: string;
     profile?: {
-      rating?: number;
-      totalReviews?: number;
+      rating?: {
+        average?: number;
+        count?: number;
+      } | number; // Support both old and new format
     };
     stats?: {
       productsListed?: number;
@@ -91,8 +93,13 @@ export const UserProfileCard: React.FC<UserProfileCardProps> = ({
             
             {user.profile?.rating && (
               <div className="text-xs text-white/60">
-                ⭐ {user.profile.rating.toFixed(1)}
-                {user.profile.totalReviews && ` (${user.profile.totalReviews})`}
+                ⭐ {typeof user.profile.rating === 'number' 
+                     ? Number(user.profile.rating).toFixed(1)
+                     : Number(user.profile.rating.average || 0).toFixed(1)
+                   }
+                {(typeof user.profile.rating === 'object' && user.profile.rating.count) && 
+                  ` (${user.profile.rating.count})`
+                }
               </div>
             )}
           </div>
